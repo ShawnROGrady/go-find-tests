@@ -20,7 +20,7 @@ func init() {
 var outLineReg *regexp.Regexp
 
 const (
-	outLineFmt   = `^([a-zA-Z0-9\/\.]+)\/([a-zA-Z0-9]+.go):([0-9]+)\.([0-9]+),([0-9]+)\.([0-9]+) ([0-9]+) ([0-9]+)$`
+	outLineFmt   = `^([a-zA-Z0-9\/\.\-_]+)\/([a-zA-Z0-9\-_]+.go):([0-9]+)\.([0-9]+),([0-9]+)\.([0-9]+) ([0-9]+) ([0-9]+)$`
 	packageIndex = iota
 	fileIndex
 	startLineIndex

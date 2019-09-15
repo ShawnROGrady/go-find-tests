@@ -28,9 +28,9 @@ var setFilePkgTests = map[string]struct {
 func TestSetFilePkg(t *testing.T) {
 	for testName, test := range setFilePkgTests {
 		t.Run(testName, func(t *testing.T) {
-			p := &Position{}
+			p := &position{}
 
-			err := p.SetFilePkg(test.path)
+			err := p.setFilePkg(test.path)
 			if err != nil {
 				if test.expectErr {
 					return

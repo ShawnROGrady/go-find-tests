@@ -6,14 +6,14 @@ import (
 	"strings"
 )
 
-// Position represents the position we want to test
-type Position struct {
+// position represents the position we want to test
+type position struct {
 	file, pkg string
-	Line, Col int
+	line, col int
 }
 
-// SetFilePkg sets the file and package from the provided path
-func (p *Position) SetFilePkg(path string) error {
+// setFilePkg sets the file and package from the provided path
+func (p *position) setFilePkg(path string) error {
 	dir, file := filepath.Split(path)
 	pkg, err := packageName(dir)
 	if err != nil {
