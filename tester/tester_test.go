@@ -3,6 +3,7 @@ package tester
 import (
 	"fmt"
 	"os/exec"
+	"sort"
 	"testing"
 )
 
@@ -57,6 +58,7 @@ func TestCoveredBy(t *testing.T) {
 					line: test.line,
 					col:  test.col,
 				},
+				finder: errGroupFinder{},
 			}
 
 			coveredBy, err := tester.CoveredBy()
@@ -79,6 +81,8 @@ func TestCoveredBy(t *testing.T) {
 				t.Errorf("Unexpected CoveredBy (expected = %v, actual = %v)", test.expectCoveredBy, coveredBy)
 			}
 
+			sort.Slice(coveredBy, func(i, j int) bool { return coveredBy[i] < coveredBy[j] })
+			sort.Slice(test.expectCoveredBy, func(i, j int) bool { return test.expectCoveredBy[i] < test.expectCoveredBy[j] })
 			for i := range coveredBy {
 				if coveredBy[i] != test.expectCoveredBy[i] {
 					t.Errorf("Unexpected CoveredBy[%d] (expected = %s, actual = %s)", i, test.expectCoveredBy[i], coveredBy[i])
@@ -102,6 +106,7 @@ func BenchmarkCoveredBy(b *testing.B) {
 				line: test.line,
 				col:  test.col,
 			},
+			finder: errGroupFinder{},
 		}
 		b.Run(testName, func(b *testing.B) {
 			var (
