@@ -3,21 +3,65 @@ package tester
 import (
 	"fmt"
 	"os/exec"
+	"runtime"
 	"sort"
 	"testing"
 )
+
+const (
+	sequentialName    = "sequential"
+	errGroupName      = "err_group"
+	pipelineCPUName   = "pipeline_num_cpu"
+	pipelineCPU2Name  = "pipeline_num_cpu*2"
+	pipelineCPU4Name  = "pipeline_num_cpu*4"
+	pipelineCPU6Name  = "pipeline_num_cpu*6"
+	pipelineCPU8Name  = "pipeline_num_cpu*8"
+	pipelineCPU10Name = "pipeline_num_cpu*10"
+)
+
+var shortSkip = map[string]bool{
+	pipelineCPU2Name:  true,
+	pipelineCPU4Name:  true,
+	pipelineCPU6Name:  true,
+	pipelineCPU8Name:  true,
+	pipelineCPU10Name: true,
+}
 
 var allFinders = []struct {
 	newFinder func() coverFinder
 	name      string
 }{
 	{
-		name:      "sequential",
+		name:      sequentialName,
 		newFinder: func() coverFinder { return synchronousFinder{} },
 	},
 	{
-		name:      "err_group",
+		name:      errGroupName,
 		newFinder: func() coverFinder { return errGroupFinder{} },
+	},
+	{
+		name:      pipelineCPUName,
+		newFinder: func() coverFinder { return pipelineFinder{maxWorkers: runtime.NumCPU()} },
+	},
+	{
+		name:      pipelineCPU2Name,
+		newFinder: func() coverFinder { return pipelineFinder{maxWorkers: runtime.NumCPU() * 2} },
+	},
+	{
+		name:      pipelineCPU4Name,
+		newFinder: func() coverFinder { return pipelineFinder{maxWorkers: runtime.NumCPU() * 4} },
+	},
+	{
+		name:      pipelineCPU6Name,
+		newFinder: func() coverFinder { return pipelineFinder{maxWorkers: runtime.NumCPU() * 6} },
+	},
+	{
+		name:      pipelineCPU8Name,
+		newFinder: func() coverFinder { return pipelineFinder{maxWorkers: runtime.NumCPU() * 8} },
+	},
+	{
+		name:      pipelineCPU10Name,
+		newFinder: func() coverFinder { return pipelineFinder{maxWorkers: runtime.NumCPU() * 10} },
 	},
 }
 
@@ -110,6 +154,12 @@ func TestCoveredBy(t *testing.T) {
 	for testName, test := range coveredByTests {
 		for i := range allFinders {
 			t.Run(fmt.Sprintf("%s_%s", testName, allFinders[i].name), func(t *testing.T) {
+				if testing.Short() {
+					if shouldSkip, ok := shortSkip[allFinders[i].name]; ok && shouldSkip {
+						t.SkipNow()
+					}
+				}
+				t.Parallel()
 				// TODO: figure out better solution to handling testdata
 				// currently getting the package associate testdata returns a string
 				// beginning with '_', which throughs of the later 'go test' calls
@@ -144,10 +194,12 @@ func TestCoveredBy(t *testing.T) {
 				}
 
 				sort.Slice(coveredBy, func(i, j int) bool { return coveredBy[i] < coveredBy[j] })
-				sort.Slice(test.expectCoveredBy, func(i, j int) bool { return test.expectCoveredBy[i] < test.expectCoveredBy[j] })
+				expectCoveredBy := []string{}
+				expectCoveredBy = append(expectCoveredBy, test.expectCoveredBy...)
+				sort.Slice(expectCoveredBy, func(i, j int) bool { return expectCoveredBy[i] < expectCoveredBy[j] })
 				for i := range coveredBy {
-					if coveredBy[i] != test.expectCoveredBy[i] {
-						t.Errorf("Unexpected CoveredBy[%d] (expected = %s, actual = %s)", i, test.expectCoveredBy[i], coveredBy[i])
+					if coveredBy[i] != expectCoveredBy[i] {
+						t.Errorf("Unexpected CoveredBy[%d] (expected = %s, actual = %s)", i, expectCoveredBy[i], coveredBy[i])
 					}
 				}
 			})
@@ -173,6 +225,11 @@ func BenchmarkCoveredBy(b *testing.B) {
 				finder: allFinders[i].newFinder(),
 			}
 			b.Run(fmt.Sprintf("%s_%s", testName, allFinders[i].name), func(b *testing.B) {
+				if testing.Short() {
+					if shouldSkip, ok := shortSkip[allFinders[i].name]; ok && shouldSkip {
+						b.SkipNow()
+					}
+				}
 				var (
 					covered []string
 					err     error
