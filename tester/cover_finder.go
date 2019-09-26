@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"runtime"
-	"strings"
 	"sync"
 
 	"github.com/ShawnROGrady/go-find-tests/cover"
@@ -12,21 +11,17 @@ import (
 )
 
 type coverFinder interface {
-	coveringTests(t *Tester, outputDir string, allTests []string) ([]string, error)
+	coveringTests(t *Tester, testBin, outputDir string, allTests []string) ([]string, error)
 }
 
 // synchronousFinder runs reach test synchronously
 // primarily useful for establishing a baseline
 type synchronousFinder struct{}
 
-func (s synchronousFinder) coveringTests(t *Tester, outputDir string, allTests []string) ([]string, error) {
+func (s synchronousFinder) coveringTests(t *Tester, testBin, outputDir string, allTests []string) ([]string, error) {
 	coveredBy := []string{}
 	for i := range allTests {
-		var dst strings.Builder
-		dst.WriteString(outputDir)
-		dst.WriteString(allTests[i])
-		dst.WriteString(".out")
-		output, err := t.runTest(allTests[i], dst.String())
+		output, err := t.runCompiledTest(allTests[i], testBin, outputDir)
 		if err != nil {
 			return []string{}, err
 		}
@@ -49,7 +44,7 @@ func (s synchronousFinder) coveringTests(t *Tester, outputDir string, allTests [
 // errGroupFinder runs each test in a separate go routine managed by an error group
 type errGroupFinder struct{}
 
-func (s errGroupFinder) coveringTests(t *Tester, outputDir string, allTests []string) ([]string, error) {
+func (s errGroupFinder) coveringTests(t *Tester, testBin, outputDir string, allTests []string) ([]string, error) {
 	var (
 		ctx       = context.Background()
 		coveredBy = []string{}
@@ -61,11 +56,7 @@ func (s errGroupFinder) coveringTests(t *Tester, outputDir string, allTests []st
 		testNum := i
 		testName := allTests[i]
 		g.Go(func() error {
-			var dst strings.Builder
-			dst.WriteString(outputDir)
-			dst.WriteString(testName)
-			dst.WriteString(".out")
-			output, err := t.runTest(testName, dst.String())
+			output, err := t.runCompiledTest(testName, testBin, outputDir)
 			if err != nil {
 				return err
 			}
@@ -95,18 +86,15 @@ func (s errGroupFinder) coveringTests(t *Tester, outputDir string, allTests []st
 
 type testRun struct {
 	testName  string
-	outputDst string
+	testBin   string
+	outputDir string
 }
 
-func testGen(outputDir string, testNames ...string) <-chan testRun {
+func testGen(testBin, outputDir string, testNames ...string) <-chan testRun {
 	out := make(chan testRun, len(testNames))
 
 	for i := range testNames {
-		var dst strings.Builder
-		dst.WriteString(outputDir)
-		dst.WriteString(testNames[i])
-		dst.WriteString(".out")
-		out <- testRun{testName: testNames[i], outputDst: dst.String()}
+		out <- testRun{testName: testNames[i], testBin: testBin, outputDir: outputDir}
 	}
 	close(out)
 	return out
@@ -120,7 +108,7 @@ type testRes struct {
 
 func runTests(done <-chan struct{}, t *Tester, testRuns <-chan testRun, res chan<- testRes) {
 	for run := range testRuns {
-		coverOut, err := t.runTest(run.testName, run.outputDst)
+		coverOut, err := t.runCompiledTest(run.testName, run.testBin, run.outputDir)
 		select {
 		case res <- testRes{cover: coverOut, testName: run.testName, err: err}:
 		case <-done:
@@ -177,11 +165,11 @@ type pipelineFinder struct {
 	maxWorkers int
 }
 
-func (p pipelineFinder) coveringTests(t *Tester, outputDir string, allTests []string) ([]string, error) {
+func (p pipelineFinder) coveringTests(t *Tester, testBin, outputDir string, allTests []string) ([]string, error) {
 	done := make(chan struct{})
 	defer close(done)
 
-	in := testGen(outputDir, allTests...)
+	in := testGen(testBin, outputDir, allTests...)
 
 	maxWorkers := p.maxWorkers
 	if maxWorkers == 0 {
