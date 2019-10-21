@@ -68,6 +68,7 @@ var allFinders = []struct {
 var coveredByTests = map[string]struct {
 	fileDir         string
 	fileName        string
+	includeSubtests bool
 	line, col       int
 	expectCoveredBy []string
 	expectErr       bool
@@ -148,6 +149,35 @@ var coveredByTests = map[string]struct {
 			"TestNovelIsEmpty",
 		},
 	},
+	"subtests_enabled_covered_by_subtests": {
+		fileDir:  "subtests",
+		fileName: "len.go",
+		line:     9, col: 0, // "empty" case of length()
+		includeSubtests: true,
+		expectCoveredBy: []string{
+			"TestIsEmpty",
+			"TestIsEmpty/empty_input",
+			"TestIsShort",
+			"TestIsShort/empty_input",
+		},
+	},
+	"subtests_disabled_covered_by_subtests": {
+		fileDir:  "subtests",
+		fileName: "len.go",
+		line:     9, col: 0, // "empty" case of length()
+		includeSubtests: false,
+		expectCoveredBy: []string{
+			"TestIsEmpty",
+			"TestIsShort",
+		},
+	},
+	"subtests_enabled_no_subtests": {
+		fileDir:         "size",
+		fileName:        "size.go",
+		includeSubtests: true,
+		line:            22, col: 0, // body of isEnormous()
+		expectCoveredBy: []string{"TestIsEnormous"},
+	},
 }
 
 func TestCoveredBy(t *testing.T) {
@@ -159,7 +189,6 @@ func TestCoveredBy(t *testing.T) {
 						t.SkipNow()
 					}
 				}
-				t.Parallel()
 				// TODO: figure out better solution to handling testdata
 				// currently getting the package associate testdata returns a string
 				// beginning with '_', which throughs of the later 'go test' calls
@@ -170,7 +199,8 @@ func TestCoveredBy(t *testing.T) {
 						line: test.line,
 						col:  test.col,
 					},
-					finder: allFinders[i].newFinder(),
+					finder:          allFinders[i].newFinder(),
+					includeSubtests: test.includeSubtests,
 				}
 
 				coveredBy, err := tester.CoveredBy()
@@ -222,7 +252,8 @@ func BenchmarkCoveredBy(b *testing.B) {
 					line: test.line,
 					col:  test.col,
 				},
-				finder: allFinders[i].newFinder(),
+				finder:          allFinders[i].newFinder(),
+				includeSubtests: test.includeSubtests,
 			}
 			b.Run(fmt.Sprintf("%s_%s", testName, allFinders[i].name), func(b *testing.B) {
 				if testing.Short() {

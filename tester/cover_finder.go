@@ -11,31 +11,39 @@ import (
 )
 
 type coverFinder interface {
-	coveringTests(t *Tester, testBin, outputDir string, allTests []string) ([]string, error)
+	coveringTests(t *Tester, testBin, outputDir string, allTests []string, includeSubtests bool) ([]string, error)
 }
 
 // synchronousFinder runs reach test synchronously
 // primarily useful for establishing a baseline
 type synchronousFinder struct{}
 
-func (s synchronousFinder) coveringTests(t *Tester, testBin, outputDir string, allTests []string) ([]string, error) {
+func (s synchronousFinder) coveringTests(t *Tester, testBin, outputDir string, allTests []string, includeSubtests bool) ([]string, error) {
 	coveredBy := []string{}
 	for i := range allTests {
-		output, err := t.runCompiledTest(allTests[i], testBin, outputDir)
+		coverout, stdout, err := t.runCompiledTest(allTests[i], testBin, outputDir)
 		if err != nil {
 			return []string{}, err
 		}
 
-		prof, err := cover.New(output)
+		prof, err := cover.New(coverout)
 		if err != nil {
 			return []string{}, err
 		}
-		if err := output.Close(); err != nil {
+		if err := coverout.Close(); err != nil {
 			return []string{}, err
 		}
 
 		if prof.Covers(t.testPos.file, t.testPos.line, t.testPos.col) {
 			coveredBy = append(coveredBy, allTests[i])
+			if includeSubtests {
+				subTests := subtests(stdout)
+				coveringSubs, err := s.coveringTests(t, testBin, outputDir, subTests, false)
+				if err != nil {
+					return coveredBy, err
+				}
+				coveredBy = append(coveredBy, coveringSubs...)
+			}
 		}
 	}
 	return coveredBy, nil
@@ -44,11 +52,12 @@ func (s synchronousFinder) coveringTests(t *Tester, testBin, outputDir string, a
 // errGroupFinder runs each test in a separate go routine managed by an error group
 type errGroupFinder struct{}
 
-func (s errGroupFinder) coveringTests(t *Tester, testBin, outputDir string, allTests []string) ([]string, error) {
+func (s errGroupFinder) coveringTests(t *Tester, testBin, outputDir string, allTests []string, includeSubtests bool) ([]string, error) {
 	var (
 		ctx       = context.Background()
 		coveredBy = []string{}
 		tests     = make([]string, len(allTests))
+		subs      = make([][]string, len(allTests))
 	)
 	g, _ := errgroup.WithContext(ctx)
 
@@ -56,21 +65,24 @@ func (s errGroupFinder) coveringTests(t *Tester, testBin, outputDir string, allT
 		testNum := i
 		testName := allTests[i]
 		g.Go(func() error {
-			output, err := t.runCompiledTest(testName, testBin, outputDir)
+			coverout, stdout, err := t.runCompiledTest(testName, testBin, outputDir)
 			if err != nil {
 				return err
 			}
 
-			prof, err := cover.New(output)
+			prof, err := cover.New(coverout)
 			if err != nil {
 				return err
 			}
-			if err := output.Close(); err != nil {
+			if err := coverout.Close(); err != nil {
 				return err
 			}
 
 			if prof.Covers(t.testPos.file, t.testPos.line, t.testPos.col) {
 				tests[testNum] = testName
+				if includeSubtests {
+					subs[testNum] = subtests(stdout)
+				}
 			}
 			return nil
 		})
@@ -79,8 +91,18 @@ func (s errGroupFinder) coveringTests(t *Tester, testBin, outputDir string, allT
 	for i := range tests {
 		if tests[i] != "" {
 			coveredBy = append(coveredBy, tests[i])
+			if includeSubtests {
+				if len(subs[i]) != 0 {
+					coveringSubs, err := s.coveringTests(t, testBin, outputDir, subs[i], false)
+					if err != nil {
+						return coveredBy, err
+					}
+					coveredBy = append(coveredBy, coveringSubs...)
+				}
+			}
 		}
 	}
+
 	return coveredBy, err
 }
 
@@ -103,14 +125,15 @@ func testGen(testBin, outputDir string, testNames ...string) <-chan testRun {
 type testRes struct {
 	testName string
 	cover    io.ReadCloser
+	output   io.Reader
 	err      error
 }
 
 func runTests(done <-chan struct{}, t *Tester, testRuns <-chan testRun, res chan<- testRes) {
 	for run := range testRuns {
-		coverOut, err := t.runCompiledTest(run.testName, run.testBin, run.outputDir)
+		coverOut, stdout, err := t.runCompiledTest(run.testName, run.testBin, run.outputDir)
 		select {
-		case res <- testRes{cover: coverOut, testName: run.testName, err: err}:
+		case res <- testRes{cover: coverOut, output: stdout, testName: run.testName, err: err}:
 		case <-done:
 			return
 		}
@@ -120,6 +143,7 @@ func runTests(done <-chan struct{}, t *Tester, testRuns <-chan testRun, res chan
 type coverRes struct {
 	testName string
 	err      error
+	testOut  io.Reader
 }
 
 func findCoveringTests(done <-chan struct{}, t *Tester, testResults <-chan testRes, res chan<- coverRes) {
@@ -154,7 +178,7 @@ func findCoveringTests(done <-chan struct{}, t *Tester, testResults <-chan testR
 		select {
 		case <-done:
 			return
-		case res <- coverRes{testName: tName}:
+		case res <- coverRes{testName: tName, testOut: testRes.output}:
 		}
 	}
 }
@@ -165,7 +189,7 @@ type pipelineFinder struct {
 	maxWorkers int
 }
 
-func (p pipelineFinder) coveringTests(t *Tester, testBin, outputDir string, allTests []string) ([]string, error) {
+func (p pipelineFinder) coveringTests(t *Tester, testBin, outputDir string, allTests []string, includeSubtests bool) ([]string, error) {
 	done := make(chan struct{})
 	defer close(done)
 
@@ -215,7 +239,16 @@ func (p pipelineFinder) coveringTests(t *Tester, testBin, outputDir string, allT
 		}
 		if res.testName != "" {
 			coveredBy = append(coveredBy, res.testName)
+			if includeSubtests {
+				subTests := subtests(res.testOut)
+				coveringSubs, err := p.coveringTests(t, testBin, outputDir, subTests, false)
+				if err != nil {
+					return coveredBy, err
+				}
+				coveredBy = append(coveredBy, coveringSubs...)
+			}
 		}
 	}
+
 	return coveredBy, nil
 }

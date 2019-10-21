@@ -1,6 +1,7 @@
 package tester
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
 	"os"
@@ -11,8 +12,9 @@ import (
 
 // Tester performs the main testing logic
 type Tester struct {
-	testPos position
-	finder  coverFinder
+	testPos         position
+	finder          coverFinder
+	includeSubtests bool
 }
 
 // New constructs a new tester
@@ -50,7 +52,7 @@ func (t *Tester) CoveredBy() ([]string, error) {
 		return []string{}, err
 	}
 
-	return t.finder.coveringTests(t, testBin, outputDir, allTests)
+	return t.finder.coveringTests(t, testBin, outputDir, allTests, t.includeSubtests)
 }
 
 func (t *Tester) compileTest(outputDir string) (string, error) {
@@ -66,15 +68,22 @@ func (t *Tester) compileTest(outputDir string) (string, error) {
 	return testBin, err
 }
 
-func (t *Tester) runCompiledTest(testName, testBin, outputDir string) (io.ReadCloser, error) {
+func (t *Tester) runCompiledTest(testName, testBin, outputDir string) (io.ReadCloser, io.Reader, error) {
 	var coverOut strings.Builder
-	coverOut.WriteString(testName)
+	coverOut.WriteString(strings.Replace(testName, "/", "", -1))
 	coverOut.WriteString(".out")
 
-	cmd := exec.Command(testBin, "-test.run", testName, "-test.coverprofile", coverOut.String(), "-test.outputdir", outputDir)
-	if err := cmd.Run(); err != nil {
-		return nil, err
+	var cmd *exec.Cmd
+	if t.includeSubtests {
+		cmd = exec.Command(testBin, "-test.run", testName, "-test.coverprofile", coverOut.String(), "-test.outputdir", outputDir, "-test.v")
+	} else {
+		cmd = exec.Command(testBin, "-test.run", testName, "-test.coverprofile", coverOut.String(), "-test.outputdir", outputDir)
+	}
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return os.Open(filepath.Join(outputDir, coverOut.String()))
+	coverProf, err := os.Open(filepath.Join(outputDir, coverOut.String()))
+	return coverProf, bytes.NewBuffer(output), err
 }
