@@ -1,9 +1,9 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
-	"os"
 	"os/exec"
 	"strconv"
 
@@ -11,28 +11,29 @@ import (
 )
 
 func main() {
-	// TODO: parse args containing file + row + col
-	// TODO: output tests covering combination
 	var (
-		path      string
-		line, col int
-		err       error
+		path            string
+		line, col       int
+		err             error
+		includeSubtests = flag.Bool("include-subs", false, "Find specific sub-tests which cover the specified block")
 	)
-	if len(os.Args) < 3 {
+	flag.Parse()
+	args := flag.Args()
+	if len(args) < 2 {
 		log.Fatal("Path and line are required")
 	}
 
-	path = os.Args[1]
-	if line, err = strconv.Atoi(os.Args[2]); err != nil {
+	path = args[0]
+	if line, err = strconv.Atoi(args[1]); err != nil {
 		log.Fatalf("Invalid line argument: %s", err)
 	}
-	if len(os.Args) > 3 {
-		if col, err = strconv.Atoi(os.Args[3]); err != nil {
+	if len(args) > 2 {
+		if col, err = strconv.Atoi(args[2]); err != nil {
 			log.Fatalf("Invalid column argument: %s", err)
 		}
 	}
 
-	t, err := tester.New(path, line, col)
+	t, err := tester.New(path, line, col, *includeSubtests)
 	if err != nil {
 		log.Fatalf("Error constructing tester: %s", err)
 	}

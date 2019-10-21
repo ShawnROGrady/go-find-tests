@@ -18,7 +18,7 @@ type Tester struct {
 }
 
 // New constructs a new tester
-func New(path string, line, col int) (*Tester, error) {
+func New(path string, line, col int, includeSubtests bool) (*Tester, error) {
 	pos := position{
 		line: line,
 		col:  col,
@@ -29,8 +29,9 @@ func New(path string, line, col int) (*Tester, error) {
 	}
 
 	return &Tester{
-		testPos: pos,
-		finder:  errGroupFinder{},
+		testPos:         pos,
+		finder:          errGroupFinder{},
+		includeSubtests: includeSubtests,
 	}, nil
 }
 
