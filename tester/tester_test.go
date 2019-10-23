@@ -178,6 +178,29 @@ var coveredByTests = map[string]struct {
 		line:            22, col: 0, // body of isEnormous()
 		expectCoveredBy: []string{"TestIsEnormous"},
 	},
+	"subtests_enabled_covered_by_3testsX2subtests": {
+		fileDir:  "subtests",
+		fileName: "len.go",
+		line:     6, col: 0, // first line of length()
+		includeSubtests: true,
+		expectCoveredBy: []string{
+			"TestIsEmpty", "TestIsEmpty/empty_input", "TestIsEmpty/short_input", "TestIsEmpty/long_input",
+			"TestIsShort", "TestIsShort/empty_input", "TestIsShort/short_input", "TestIsShort/long_input",
+		},
+	},
+	"subtests_enabled_covered_by_5testsX5subtests": {
+		fileDir:  "subtests_5_5",
+		fileName: "len.go",
+		line:     7, col: 0, // first line of length()
+		includeSubtests: true,
+		expectCoveredBy: []string{
+			"TestIsEmpty", "TestIsEmpty/empty_input", "TestIsEmpty/short_input", "TestIsEmpty/long_input", "TestIsEmpty/very_long_input", "TestIsEmpty/novel_input",
+			"TestIsShort", "TestIsShort/empty_input", "TestIsShort/short_input", "TestIsShort/long_input", "TestIsShort/very_long_input", "TestIsShort/novel_input",
+			"TestIsLong", "TestIsLong/empty_input", "TestIsLong/short_input", "TestIsLong/long_input", "TestIsLong/very_long_input", "TestIsLong/novel_input",
+			"TestIsVeryLong", "TestIsVeryLong/empty_input", "TestIsVeryLong/short_input", "TestIsVeryLong/long_input", "TestIsVeryLong/very_long_input", "TestIsVeryLong/novel_input",
+			"TestIsNovel", "TestIsNovel/empty_input", "TestIsNovel/short_input", "TestIsNovel/long_input", "TestIsNovel/very_long_input", "TestIsNovel/novel_input",
+		},
+	},
 }
 
 func TestCoveredBy(t *testing.T) {
