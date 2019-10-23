@@ -38,6 +38,13 @@ func (s synchronousFinder) coveringTests(t *Tester, testBin, outputDir string, a
 			coveredBy = append(coveredBy, allTests[i])
 			if includeSubtests {
 				subTests := subtests(stdout)
+				if len(subTests) == 0 {
+					continue
+				}
+				if len(subTests) == 1 {
+					coveredBy = append(coveredBy, subTests[0])
+					continue
+				}
 				coveringSubs, err := s.coveringTests(t, testBin, outputDir, subTests, false)
 				if err != nil {
 					return coveredBy, err
@@ -59,7 +66,7 @@ func (s errGroupFinder) coveringTests(t *Tester, testBin, outputDir string, allT
 		tests     = make([]string, len(allTests))
 		subs      = make([][]string, len(allTests))
 	)
-	g, _ := errgroup.WithContext(ctx)
+	g, ctx := errgroup.WithContext(ctx)
 
 	for i := range allTests {
 		testNum := i
@@ -87,23 +94,50 @@ func (s errGroupFinder) coveringTests(t *Tester, testBin, outputDir string, allT
 			return nil
 		})
 	}
-	err := g.Wait()
-	for i := range tests {
-		if tests[i] != "" {
-			coveredBy = append(coveredBy, tests[i])
-			if includeSubtests {
-				if len(subs[i]) != 0 {
-					coveringSubs, err := s.coveringTests(t, testBin, outputDir, subs[i], false)
-					if err != nil {
-						return coveredBy, err
+	if err := g.Wait(); err != nil {
+		return []string{}, err
+	}
+
+	if includeSubtests {
+		errGroup, _ := errgroup.WithContext(ctx)
+		coveringSubs := make([][]string, len(tests))
+		for i := range tests {
+			if tests[i] != "" {
+				coveredBy = append(coveredBy, tests[i])
+			}
+			testNum := i
+			errGroup.Go(func() error {
+				if len(subs[testNum]) != 0 {
+					if len(subs[testNum]) == 1 {
+						coveringSubs[testNum] = subs[testNum]
+						return nil
 					}
-					coveredBy = append(coveredBy, coveringSubs...)
+					coveringSubTests, err := s.coveringTests(t, testBin, outputDir, subs[testNum], false)
+					if err != nil {
+						return err
+					}
+					coveringSubs[testNum] = coveringSubTests
 				}
+				return nil
+			})
+		}
+		if err := errGroup.Wait(); err != nil {
+			return []string{}, err
+		}
+		for i := range coveredBy {
+			if len(coveringSubs[i]) != 0 {
+				coveredBy = append(coveredBy[:i], append(coveringSubs[i], coveredBy[i:]...)...)
+			}
+		}
+	} else {
+		for i := range tests {
+			if tests[i] != "" {
+				coveredBy = append(coveredBy, tests[i])
 			}
 		}
 	}
 
-	return coveredBy, err
+	return coveredBy, nil
 }
 
 type testRun struct {
@@ -233,22 +267,77 @@ func (p pipelineFinder) coveringTests(t *Tester, testBin, outputDir string, allT
 
 	coveredBy := []string{}
 
-	for res := range coverResults {
-		if res.err != nil {
-			return []string{}, res.err
+	if includeSubtests {
+		var allCoveringTests = make([]subRes, len(allTests))
+		if err := p.findCoveringSubs(t, testBin, outputDir, coverResults, allCoveringTests); err != nil {
+			return []string{}, err
 		}
-		if res.testName != "" {
-			coveredBy = append(coveredBy, res.testName)
-			if includeSubtests {
-				subTests := subtests(res.testOut)
-				coveringSubs, err := p.coveringTests(t, testBin, outputDir, subTests, false)
-				if err != nil {
-					return coveredBy, err
+		for i, res := range allCoveringTests {
+			if res.err != nil {
+				return []string{}, res.err
+			}
+			if res.testName != "" {
+				coveredBy = append(coveredBy, res.testName)
+				if coveringSubs := allCoveringTests[i].subtests; len(coveringSubs) != 0 {
+					coveredBy = append(coveredBy, coveringSubs...)
 				}
-				coveredBy = append(coveredBy, coveringSubs...)
+			}
+		}
+	} else {
+		for res := range coverResults {
+			if res.err != nil {
+				return []string{}, res.err
+			}
+			if res.testName != "" {
+				coveredBy = append(coveredBy, res.testName)
 			}
 		}
 	}
 
 	return coveredBy, nil
+}
+
+type subRes struct {
+	subtests []string
+	coverRes
+}
+
+func (p pipelineFinder) findCoveringSubs(t *Tester, testBin, outputDir string, coverResults chan coverRes, dst []subRes) error {
+	var wg sync.WaitGroup
+	i := 0
+
+	for res := range coverResults {
+		if res.err != nil {
+			return res.err
+		}
+
+		dst[i] = subRes{coverRes: res, subtests: []string{}}
+		if res.testName != "" {
+			wg.Add(1)
+			go func(i int, res coverRes) {
+				subTests := subtests(res.testOut)
+				if len(subTests) == 0 {
+					wg.Done()
+					return
+				}
+				if len(subTests) == 1 {
+					dst[i].subtests = subTests
+					wg.Done()
+					return
+				}
+				coveringSubs, err := p.coveringTests(t, testBin, outputDir, subTests, false)
+				if err != nil {
+					dst[i].err = err
+					wg.Done()
+					return
+				}
+
+				dst[i].subtests = coveringSubs
+				wg.Done()
+			}(i, res)
+			i++
+		}
+	}
+	wg.Wait()
+	return nil
 }
