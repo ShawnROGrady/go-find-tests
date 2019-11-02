@@ -2,18 +2,21 @@ package tester
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/ShawnROGrady/go-find-tests/cover"
+	"golang.org/x/sync/errgroup"
 )
 
 // Tester performs the main testing logic
 type Tester struct {
 	testPos         position
-	finder          coverFinder
 	includeSubtests bool
 }
 
@@ -30,7 +33,6 @@ func New(path string, line, col int, includeSubtests bool) (*Tester, error) {
 
 	return &Tester{
 		testPos:         pos,
-		finder:          errGroupFinder{},
 		includeSubtests: includeSubtests,
 	}, nil
 }
@@ -53,7 +55,7 @@ func (t *Tester) CoveredBy() ([]string, error) {
 		return []string{}, err
 	}
 
-	return t.finder.coveringTests(t, testBin, outputDir, allTests, t.includeSubtests)
+	return t.coveringTests(testBin, outputDir, allTests, t.includeSubtests)
 }
 
 func (t *Tester) compileTest(outputDir string) (string, error) {
@@ -87,4 +89,85 @@ func (t *Tester) runCompiledTest(testName, testBin, outputDir string) (io.ReadCl
 
 	coverProf, err := os.Open(filepath.Join(outputDir, coverOut.String()))
 	return coverProf, bytes.NewBuffer(output), err
+}
+
+func (t *Tester) coveringTests(testBin, outputDir string, allTests []string, includeSubtests bool) ([]string, error) {
+	var (
+		ctx       = context.Background()
+		coveredBy = []string{}
+		tests     = make([]string, len(allTests))
+		subs      = make([][]string, len(allTests))
+	)
+	g, ctx := errgroup.WithContext(ctx)
+
+	for i := range allTests {
+		testNum := i
+		testName := allTests[i]
+		g.Go(func() error {
+			coverout, stdout, err := t.runCompiledTest(testName, testBin, outputDir)
+			if err != nil {
+				return err
+			}
+
+			prof, err := cover.New(coverout)
+			if err != nil {
+				return err
+			}
+			if err := coverout.Close(); err != nil {
+				return err
+			}
+
+			if prof.Covers(t.testPos.file, t.testPos.line, t.testPos.col) {
+				tests[testNum] = testName
+				if includeSubtests {
+					subs[testNum] = subtests(stdout)
+				}
+			}
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return []string{}, err
+	}
+
+	if includeSubtests {
+		errGroup, _ := errgroup.WithContext(ctx)
+		coveringSubs := make([][]string, len(tests))
+		for i := range tests {
+			if tests[i] != "" {
+				coveredBy = append(coveredBy, tests[i])
+			}
+			testNum := i
+			errGroup.Go(func() error {
+				if len(subs[testNum]) != 0 {
+					if len(subs[testNum]) == 1 {
+						coveringSubs[testNum] = subs[testNum]
+						return nil
+					}
+					coveringSubTests, err := t.coveringTests(testBin, outputDir, subs[testNum], false)
+					if err != nil {
+						return err
+					}
+					coveringSubs[testNum] = coveringSubTests
+				}
+				return nil
+			})
+		}
+		if err := errGroup.Wait(); err != nil {
+			return []string{}, err
+		}
+		for i := range coveredBy {
+			if len(coveringSubs[i]) != 0 {
+				coveredBy = append(coveredBy[:i], append(coveringSubs[i], coveredBy[i:]...)...)
+			}
+		}
+	} else {
+		for i := range tests {
+			if tests[i] != "" {
+				coveredBy = append(coveredBy, tests[i])
+			}
+		}
+	}
+
+	return coveredBy, nil
 }
