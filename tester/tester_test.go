@@ -2,6 +2,8 @@ package tester
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
 	"runtime"
 	"sort"
@@ -366,6 +368,68 @@ func BenchmarkCoveredBy(b *testing.B) {
 				}
 				coveringTests = covered
 			})
+		}
+	}
+}
+
+func BenchmarkCoveringTests(b *testing.B) {
+	for testName, test := range coveredByBenchmarks {
+		for i := range allFinders {
+			// TODO: figure out better solution to handling testdata
+			// currently getting the package associate testdata returns a string
+			// beginning with '_', which throughs of the later 'go test' calls
+			tester := &Tester{
+				testPos: position{
+					file: test.fileName,
+					pkg:  fmt.Sprintf("../testdata/%s", test.fileDir),
+					line: test.line,
+					col:  test.col,
+				},
+				finder:          allFinders[i].newFinder(),
+				includeSubtests: test.includeSubtests,
+			}
+			outputDir, err := ioutil.TempDir("", "test_finder")
+			if err != nil {
+				b.Fatalf("Error creating tmp dir: %s", err)
+			}
+			testBin, err := tester.compileTest(outputDir)
+			if err != nil {
+				if !test.expectErr {
+					b.Errorf("Error compiling test: %s", err)
+				}
+				os.RemoveAll(outputDir)
+				continue
+			}
+			allTests, err := findTests(tester.testPos.pkg)
+			if err != nil {
+				if !test.expectErr {
+					b.Errorf("Error finding tests: %s", err)
+				}
+				os.RemoveAll(outputDir)
+				continue
+			}
+			b.Run(fmt.Sprintf("%s_%s", testName, allFinders[i].name), func(b *testing.B) {
+				if testing.Short() {
+					if shouldSkip, ok := shortSkip[allFinders[i].name]; ok && shouldSkip {
+						b.SkipNow()
+					}
+				}
+				var (
+					covered []string
+					err     error
+				)
+				for n := 0; n < b.N; n++ {
+					covered, err = tester.finder.coveringTests(tester, testBin, outputDir, allTests, tester.includeSubtests)
+					if err != nil {
+						if !test.expectErr {
+							b.Errorf("Unexpected error: %s", err)
+						}
+					}
+				}
+				coveringTests = covered
+			})
+
+			os.RemoveAll(outputDir)
 		}
 	}
 }
