@@ -156,8 +156,8 @@ func (t *Tester) coveringTests(testBin, outputDir string, allTests []string, inc
 		errGroup, _ := errgroup.WithContext(ctx)
 		coveringSubs := make([][]string, len(tests))
 		for i := range tests {
-			if tests[i] != "" {
-				coveredBy = append(coveredBy, tests[i])
+			if tests[i] == "" {
+				continue
 			}
 			testNum := i
 			errGroup.Go(func() error {
@@ -178,9 +178,12 @@ func (t *Tester) coveringTests(testBin, outputDir string, allTests []string, inc
 		if err := errGroup.Wait(); err != nil {
 			return []string{}, err
 		}
-		for i := range coveredBy {
+		for i := range tests {
+			if tests[i] != "" {
+				coveredBy = append(coveredBy, tests[i])
+			}
 			if len(coveringSubs[i]) != 0 {
-				coveredBy = append(coveredBy[:i], append(coveringSubs[i], coveredBy[i:]...)...)
+				coveredBy = append(coveredBy, coveringSubs[i]...)
 			}
 		}
 	} else {
