@@ -18,6 +18,7 @@ import (
 type Tester struct {
 	testPos         position
 	includeSubtests bool
+	dir             string // directory of test
 }
 
 // New constructs a new tester
@@ -31,9 +32,22 @@ func New(path string, line, col int, includeSubtests bool) (*Tester, error) {
 		return nil, err
 	}
 
+	var (
+		dir string
+		err error
+	)
+	if strings.HasPrefix(path, ".") {
+		rel, _ := filepath.Split(path)
+		dir, err = filepath.Abs(rel)
+	}
+	if err != nil {
+		return nil, err
+	}
+
 	return &Tester{
 		testPos:         pos,
 		includeSubtests: includeSubtests,
+		dir:             dir,
 	}, nil
 }
 
@@ -76,18 +90,26 @@ func (t *Tester) runCompiledTest(testName, testBin, outputDir string) (io.ReadCl
 	coverOut.WriteString(strings.Replace(testName, "/", "", -1))
 	coverOut.WriteString(".out")
 
+	pathToCover := filepath.Join(outputDir, coverOut.String())
+
 	var cmd *exec.Cmd
 	if t.includeSubtests {
 		cmd = exec.Command(testBin, "-test.run", testName, "-test.coverprofile", coverOut.String(), "-test.outputdir", outputDir, "-test.v")
 	} else {
 		cmd = exec.Command(testBin, "-test.run", testName, "-test.coverprofile", coverOut.String(), "-test.outputdir", outputDir)
 	}
+
+	if t.dir != "" {
+		// run test in same dir as file to prevent issues due to dependency on file structure
+		cmd.Dir = t.dir
+	}
+
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	coverProf, err := os.Open(filepath.Join(outputDir, coverOut.String()))
+	coverProf, err := os.Open(pathToCover)
 	return coverProf, bytes.NewBuffer(output), err
 }
 
