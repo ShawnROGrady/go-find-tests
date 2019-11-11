@@ -94,9 +94,9 @@ func (t *Tester) runCompiledTest(testName, testBin, outputDir string) (io.ReadCl
 
 	var cmd *exec.Cmd
 	if t.includeSubtests {
-		cmd = exec.Command(testBin, "-test.run", testName, "-test.coverprofile", coverOut.String(), "-test.outputdir", outputDir, "-test.v")
+		cmd = exec.Command("go", "tool", "test2json", testBin, "-test.run", testName, "-test.coverprofile", coverOut.String(), "-test.outputdir", outputDir, "-test.v")
 	} else {
-		cmd = exec.Command(testBin, "-test.run", testName, "-test.coverprofile", coverOut.String(), "-test.outputdir", outputDir)
+		cmd = exec.Command("go", "tool", "test2json", testBin, "-test.run", testName, "-test.coverprofile", coverOut.String(), "-test.outputdir", outputDir)
 	}
 
 	if t.dir != "" {
@@ -142,7 +142,10 @@ func (t *Tester) coveringTests(testBin, outputDir string, allTests []string, inc
 			if prof.Covers(t.testPos.file, t.testPos.line, t.testPos.col) {
 				tests[testNum] = testName
 				if includeSubtests {
-					subs[testNum] = subtests(stdout)
+					subs[testNum], err = subtests(stdout)
+					if err != nil {
+						return err
+					}
 				}
 			}
 			return nil

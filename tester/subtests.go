@@ -2,35 +2,39 @@ package tester
 
 import (
 	"bufio"
+	"encoding/json"
 	"io"
-	"regexp"
+	"strings"
+	"time"
 )
 
-func init() {
-	outSubtestReg = regexp.MustCompile(outSubtestFmt)
+// TestEvent represents a single output event of a test run
+// see: go doc test2json
+type TestEvent struct {
+	Time    time.Time // encodes as an RFC3339-format string
+	Action  string
+	Package string
+	Test    string
+	Elapsed float64 // seconds
+	Output  string
 }
 
-var outSubtestReg *regexp.Regexp
-
-const (
-	outSubtestFmt = `^=== RUN   ([a-zA-Z0-9\-\_]+\/[a-zA-Z0-9\-\_]+)`
-)
-
-func subtests(r io.Reader) []string {
+func subtests(r io.Reader) ([]string, error) {
 	var (
 		subtests = []string{}
 		scanner  = bufio.NewScanner(r)
 	)
 
 	for scanner.Scan() {
-		s := scanner.Text()
-		subexps := outSubtestReg.FindStringSubmatch(s)
-		if len(subexps) == 0 {
-			continue
+		event := TestEvent{}
+		if err := json.Unmarshal(scanner.Bytes(), &event); err != nil {
+			return nil, err
 		}
 
-		subTest := subexps[1]
-		subtests = append(subtests, subTest)
+		// TODO: should be able to distinguish different levels of sub tests
+		if event.Action == "pass" && strings.Contains(event.Test, "/") {
+			subtests = append(subtests, event.Test)
+		}
 	}
-	return subtests
+	return subtests, nil
 }
