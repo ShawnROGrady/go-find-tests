@@ -104,13 +104,15 @@ func (t *Tester) runCompiledTest(testName, testBin, outputDir string) (io.ReadCl
 		cmd.Dir = t.dir
 	}
 
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, nil, err
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+
+	if err := cmd.Run(); err != nil {
+		return nil, nil, parseTestError(err, &buf)
 	}
 
 	coverProf, err := os.Open(pathToCover)
-	return coverProf, bytes.NewBuffer(output), err
+	return coverProf, &buf, err
 }
 
 func (t *Tester) coveringTests(testBin, outputDir string, allTests []string, includeSubtests bool) ([]string, error) {

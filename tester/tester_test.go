@@ -14,6 +14,7 @@ var coveredByTests = map[string]struct {
 	line, col       int
 	expectCoveredBy []string
 	expectErr       bool
+	expectedErr     error
 }{
 	"covered_by_1_of_4_tests": {
 		fileDir:  "size",
@@ -43,6 +44,10 @@ var coveredByTests = map[string]struct {
 		fileName: "fail.go",
 		line:     5, col: 0,
 		expectErr: true,
+		expectedErr: &testErr{
+			testName: "TestSum",
+			output:   "fail_test.go:12: Unexpected sum(1, 2) (expected = 3, actual = 2)",
+		},
 	},
 	"subtests_enabled_covered_by_subtests": {
 		fileDir:  "subtests",
@@ -96,9 +101,14 @@ func TestCoveredBy(t *testing.T) {
 				if err == nil {
 					t.Errorf("Unexpectedly no error")
 				}
+				if test.expectedErr != nil {
+					if test.expectedErr.Error() != err.Error() {
+						t.Errorf("Unexpected error message (expected = '%s', actual = '%s')", test.expectedErr, err)
+					}
+				}
 			} else {
 				if err != nil {
-					if exitErr, ok := err.(*exec.ExitError); ok {
+					if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) != 0 {
 						t.Errorf("Unexpected error checking for covering tests: %s", exitErr.Stderr)
 					} else {
 						t.Errorf("Unexpected error checking for covering tests: %#v", err)

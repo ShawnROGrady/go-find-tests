@@ -60,7 +60,7 @@ func main() {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			log.Fatalf("Error determining covering tests: %s", exitErr.Stderr)
 		} else {
-			log.Fatalf("Error determining covering tests: %#v", err)
+			log.Fatalf("Error determining covering tests: %s", err)
 		}
 	}
 	fmt.Fprintf(os.Stdout, "%s\n", coveredBy)
