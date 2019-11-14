@@ -46,5 +46,23 @@ func parseTestError(origErr error, output io.Reader) error {
 		}
 	}
 
+	return parseCommandErr(origErr)
+}
+
+// commandErr is an alternate to exec.ExitError which includes stderr if present
+type commandErr struct {
+	err    error
+	stderr string
+}
+
+func (c *commandErr) Error() string {
+	return fmt.Sprintf("%s - %s", c.err, c.stderr)
+}
+
+func parseCommandErr(origErr error) error {
+	if exitErr, ok := origErr.(*exec.ExitError); ok && len(exitErr.Stderr) != 0 {
+		return &commandErr{err: origErr, stderr: string(exitErr.Stderr)}
+	}
+
 	return origErr
 }

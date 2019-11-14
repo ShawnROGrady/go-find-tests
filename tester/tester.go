@@ -3,6 +3,7 @@ package tester
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -61,12 +62,12 @@ func (t *Tester) CoveredBy() ([]string, error) {
 
 	testBin, err := t.compileTest(outputDir)
 	if err != nil {
-		return []string{}, err
+		return []string{}, fmt.Errorf("error compiling test for go pkg %s: %s", t.testPos.pkg, err)
 	}
 
 	allTests, err := findTests(t.testPos.pkg)
 	if err != nil {
-		return []string{}, err
+		return []string{}, fmt.Errorf("error finding tests in go pkg %s: %s", t.testPos.pkg, err)
 	}
 
 	return t.coveringTests(testBin, outputDir, allTests, t.includeSubtests)
@@ -82,7 +83,10 @@ func (t *Tester) compileTest(outputDir string) (string, error) {
 
 	cmd := exec.Command("go", "test", t.testPos.pkg, "-cover", "-c", "-o", testBin)
 	err := cmd.Run()
-	return testBin, err
+	if err != nil {
+		return "", parseCommandErr(err)
+	}
+	return testBin, nil
 }
 
 func (t *Tester) runCompiledTest(testName, testBin, outputDir string) (io.ReadCloser, io.Reader, error) {
@@ -130,12 +134,12 @@ func (t *Tester) coveringTests(testBin, outputDir string, allTests []string, inc
 		g.Go(func() error {
 			coverout, stdout, err := t.runCompiledTest(testName, testBin, outputDir)
 			if err != nil {
-				return err
+				return fmt.Errorf("error running test '%s': %s", testName, err)
 			}
 
 			prof, err := cover.New(coverout)
 			if err != nil {
-				return err
+				return fmt.Errorf("error parsing coverage output: %s", err)
 			}
 			if err := coverout.Close(); err != nil {
 				return err
@@ -146,7 +150,7 @@ func (t *Tester) coveringTests(testBin, outputDir string, allTests []string, inc
 				if includeSubtests {
 					subs[testNum], err = subtests(stdout)
 					if err != nil {
-						return err
+						return fmt.Errorf("error finding subtests: %s", err)
 					}
 				}
 			}

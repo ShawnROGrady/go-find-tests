@@ -10,7 +10,7 @@ import (
 func findTests(pkg string) ([]string, error) {
 	output, err := exec.Command("go", "test", "-list", ".", pkg).Output()
 	if err != nil {
-		return []string{}, err
+		return []string{}, parseCommandErr(err)
 	}
 
 	var (

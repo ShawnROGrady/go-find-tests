@@ -2,7 +2,6 @@ package tester
 
 import (
 	"fmt"
-	"os/exec"
 	"sort"
 	"testing"
 )
@@ -44,10 +43,10 @@ var coveredByTests = map[string]struct {
 		fileName: "fail.go",
 		line:     5, col: 0,
 		expectErr: true,
-		expectedErr: &testErr{
+		expectedErr: fmt.Errorf("error running test 'TestSum': %s", &testErr{
 			testName: "TestSum",
 			output:   "fail_test.go:12: Unexpected sum(1, 2) (expected = 3, actual = 2)",
-		},
+		}),
 	},
 	"subtests_enabled_covered_by_subtests": {
 		fileDir:  "subtests",
@@ -108,11 +107,7 @@ func TestCoveredBy(t *testing.T) {
 				}
 			} else {
 				if err != nil {
-					if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) != 0 {
-						t.Errorf("Unexpected error checking for covering tests: %s", exitErr.Stderr)
-					} else {
-						t.Errorf("Unexpected error checking for covering tests: %#v", err)
-					}
+					t.Errorf("Unexpected error checking for covering tests: %s", err)
 					return
 				}
 			}

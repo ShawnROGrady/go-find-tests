@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"strconv"
 
 	"github.com/ShawnROGrady/go-find-tests/tester"
@@ -57,11 +56,7 @@ func main() {
 
 	coveredBy, err := t.CoveredBy()
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			log.Fatalf("Error determining covering tests: %s", exitErr.Stderr)
-		} else {
-			log.Fatalf("Error determining covering tests: %s", err)
-		}
+		log.Fatalf("Error determining covering tests: %s", err)
 	}
 	fmt.Fprintf(os.Stdout, "%s\n", coveredBy)
 }

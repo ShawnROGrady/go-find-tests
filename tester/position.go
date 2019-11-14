@@ -1,6 +1,7 @@
 package tester
 
 import (
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -17,7 +18,7 @@ func (p *position) setFilePkg(path string) error {
 	dir, file := filepath.Split(path)
 	pkg, err := packageName(dir)
 	if err != nil {
-		return err
+		return fmt.Errorf("error finding go pkg from '%s': %s", path, err)
 	}
 	p.file = file
 	p.pkg = pkg
@@ -28,7 +29,7 @@ func (p *position) setFilePkg(path string) error {
 func packageName(dir string) (string, error) {
 	output, err := exec.Command("go", "list", dir).Output()
 	if err != nil {
-		return "", err
+		return "", parseCommandErr(err)
 	}
 	return strings.TrimRight(string(output), "\n"), nil
 }
