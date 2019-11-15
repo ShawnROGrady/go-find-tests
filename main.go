@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 
+	"github.com/ShawnROGrady/go-find-tests/finder"
 	"github.com/ShawnROGrady/go-find-tests/tester"
 )
 
@@ -16,6 +18,7 @@ func main() {
 		line, col       int
 		err             error
 		includeSubtests = flag.Bool("include-subs", false, "Find specific sub-tests which cover the specified block")
+		printPositions  = flag.Bool("print-positions", false, "Print the positing of the found tests (NOTE: this does not currently work with subtests)")
 		helpShort       = flag.Bool("h", false, "Print a help message and exit")
 		help            = flag.Bool("help", false, "Print a help message and exit")
 	)
@@ -58,5 +61,23 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error determining covering tests: %s", err)
 	}
-	fmt.Fprintf(os.Stdout, "%s\n", coveredBy)
+
+	if !*printPositions {
+		// TODO: allow output fmt to be changed
+		for i := range coveredBy {
+			fmt.Fprintf(os.Stdout, "%s\n", coveredBy[i])
+		}
+		return
+	}
+
+	dir, _ := filepath.Split(path)
+	allPositions, err := finder.PackageTests(dir)
+	if err != nil {
+		log.Fatalf("Error finding tests in %s: %s", dir, err)
+	}
+
+	for k, v := range allPositions {
+		// TODO: allow output fmt to be changed
+		fmt.Fprintf(os.Stdout, "%s:%s\n", k, v)
+	}
 }

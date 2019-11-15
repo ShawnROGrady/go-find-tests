@@ -1,6 +1,7 @@
 package finder
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -13,6 +14,11 @@ type TestPosition struct {
 	File      string
 	Line, Col int
 	Offset    int
+}
+
+// TODO: allow for different output formats
+func (t TestPosition) String() string {
+	return fmt.Sprintf("%s:%d:%d", t.File, t.Line, t.Col)
 }
 
 // PackageTests returns the positions of all tests within a package
