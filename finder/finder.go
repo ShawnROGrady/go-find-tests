@@ -13,7 +13,6 @@ type TestPosition struct {
 	File      string
 	Line, Col int
 	Offset    int
-	Subs      map[string]TestPosition
 }
 
 // PackageTests returns the positions of all tests within a package
