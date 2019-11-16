@@ -19,11 +19,18 @@ import (
 type Tester struct {
 	testPos         position
 	includeSubtests bool
+	short           bool
 	dir             string // directory of test
 }
 
+// Config represents configuration options for the Tester
+type Config struct {
+	IncludeSubtests bool
+	Short           bool // sets '-short' when running tests
+}
+
 // New constructs a new tester
-func New(path string, line, col int, includeSubtests bool) (*Tester, error) {
+func New(path string, line, col int, conf Config) (*Tester, error) {
 	pos := position{
 		line: line,
 		col:  col,
@@ -47,7 +54,8 @@ func New(path string, line, col int, includeSubtests bool) (*Tester, error) {
 
 	return &Tester{
 		testPos:         pos,
-		includeSubtests: includeSubtests,
+		includeSubtests: conf.IncludeSubtests,
+		short:           conf.Short,
 		dir:             dir,
 	}, nil
 }
@@ -96,12 +104,15 @@ func (t *Tester) runCompiledTest(testName, testBin, outputDir string) (io.ReadCl
 
 	pathToCover := filepath.Join(outputDir, coverOut.String())
 
-	var cmd *exec.Cmd
+	cmdArgs := []string{"tool", "test2json", testBin, "-test.run", testName, "-test.coverprofile", coverOut.String(), "-test.outputdir", outputDir}
 	if t.includeSubtests {
-		cmd = exec.Command("go", "tool", "test2json", testBin, "-test.run", testName, "-test.coverprofile", coverOut.String(), "-test.outputdir", outputDir, "-test.v")
-	} else {
-		cmd = exec.Command("go", "tool", "test2json", testBin, "-test.run", testName, "-test.coverprofile", coverOut.String(), "-test.outputdir", outputDir)
+		cmdArgs = append(cmdArgs, "-test.v")
 	}
+	if t.short {
+		cmdArgs = append(cmdArgs, "-test.short")
+	}
+
+	cmd := exec.Command("go", cmdArgs...)
 
 	if t.dir != "" {
 		// run test in same dir as file to prevent issues due to dependency on file structure

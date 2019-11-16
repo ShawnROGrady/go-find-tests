@@ -24,6 +24,9 @@ func TestSize(t *testing.T) {
 }
 
 func TestNegativeSize(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
 	for i := -10; i < 0; i++ {
 		size := size(i)
 		if size != "negative" {

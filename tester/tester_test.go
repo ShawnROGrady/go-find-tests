@@ -10,6 +10,7 @@ var coveredByTests = map[string]struct {
 	fileDir         string
 	fileName        string
 	includeSubtests bool
+	short           bool
 	line, col       int
 	expectCoveredBy []string
 	expectErr       bool
@@ -26,6 +27,13 @@ var coveredByTests = map[string]struct {
 		fileName: "size.go",
 		line:     8, col: 0, // negative case of size()
 		expectCoveredBy: []string{"TestSize", "TestNegativeSize", "TestIsNegative"},
+	},
+	"test_skipped_due_to_short_flag": {
+		fileDir:  "size",
+		fileName: "size.go",
+		line:     8, col: 0, // negative case of size()
+		short:           true,
+		expectCoveredBy: []string{"TestSize", "TestIsNegative"},
 	},
 	"covered_by_0_of_4_tests": {
 		fileDir:  "size",
@@ -93,6 +101,7 @@ func TestCoveredBy(t *testing.T) {
 					col:  test.col,
 				},
 				includeSubtests: test.includeSubtests,
+				short:           test.short,
 			}
 
 			coveredBy, err := tester.CoveredBy()
@@ -114,6 +123,7 @@ func TestCoveredBy(t *testing.T) {
 
 			if len(coveredBy) != len(test.expectCoveredBy) {
 				t.Errorf("Unexpected CoveredBy (expected = %v, actual = %v)", test.expectCoveredBy, coveredBy)
+				return
 			}
 
 			sort.Slice(coveredBy, func(i, j int) bool { return coveredBy[i] < coveredBy[j] })
