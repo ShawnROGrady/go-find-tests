@@ -19,6 +19,7 @@ func main() {
 		err             error
 		includeSubtests = flag.Bool("include-subs", false, "Find specific sub-tests which cover the specified block")
 		printPositions  = flag.Bool("print-positions", false, "Print the positing of the found tests (NOTE: this does not currently work with subtests)")
+		jsonFmt         = flag.Bool("json", false, "Print the output in json format")
 		helpShort       = flag.Bool("h", false, "Print a help message and exit")
 		help            = flag.Bool("help", false, "Print a help message and exit")
 	)
@@ -63,9 +64,8 @@ func main() {
 	}
 
 	if !*printPositions {
-		// TODO: allow output fmt to be changed
-		for i := range coveredBy {
-			fmt.Fprintf(os.Stdout, "%s\n", coveredBy[i])
+		if err := printTests(os.Stdout, coveredBy, *jsonFmt); err != nil {
+			log.Fatalf("Error writing output: %s", err)
 		}
 		return
 	}
@@ -76,10 +76,13 @@ func main() {
 		log.Fatalf("Error finding tests in %s: %s", dir, err)
 	}
 
+	coveringPositions := make(map[string]finder.TestPosition)
 	for i := range coveredBy {
 		if pos, ok := allPositions[coveredBy[i]]; ok {
-			// TODO: allow output fmt to be changed
-			fmt.Fprintf(os.Stdout, "%s:%s\n", coveredBy[i], pos)
+			coveringPositions[coveredBy[i]] = pos
 		}
+	}
+	if err := printCoveringPostions(os.Stdout, coveringPositions, *jsonFmt); err != nil {
+		log.Fatalf("Error writing output: %s", err)
 	}
 }

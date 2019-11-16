@@ -11,9 +11,10 @@ import (
 
 // TestPosition represents the location of a tests declaration
 type TestPosition struct {
-	File      string
-	Line, Col int
-	Offset    int
+	File   string `json:"file"`
+	Line   int    `json:"line"`
+	Col    int    `json:"col"`
+	Offset int    `json:"offset"`
 }
 
 // TODO: allow for different output formats
