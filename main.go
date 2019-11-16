@@ -76,8 +76,10 @@ func main() {
 		log.Fatalf("Error finding tests in %s: %s", dir, err)
 	}
 
-	for k, v := range allPositions {
-		// TODO: allow output fmt to be changed
-		fmt.Fprintf(os.Stdout, "%s:%s\n", k, v)
+	for i := range coveredBy {
+		if pos, ok := allPositions[coveredBy[i]]; ok {
+			// TODO: allow output fmt to be changed
+			fmt.Fprintf(os.Stdout, "%s:%s\n", coveredBy[i], pos)
+		}
 	}
 }
