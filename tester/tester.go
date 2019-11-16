@@ -20,13 +20,15 @@ type Tester struct {
 	testPos         position
 	includeSubtests bool
 	short           bool
+	run             string
 	dir             string // directory of test
 }
 
 // Config represents configuration options for the Tester
 type Config struct {
 	IncludeSubtests bool
-	Short           bool // sets '-short' when running tests
+	Short           bool   // sets '-short' when running tests
+	Run             string // which tests should be run, if empty defaults to '.' (sets '-list' flag)
 }
 
 // New constructs a new tester
@@ -52,10 +54,16 @@ func New(path string, line, col int, conf Config) (*Tester, error) {
 		return nil, err
 	}
 
+	runExp := "." // should default to running all
+	if conf.Run != "" {
+		runExp = "."
+	}
+
 	return &Tester{
 		testPos:         pos,
 		includeSubtests: conf.IncludeSubtests,
 		short:           conf.Short,
+		run:             runExp,
 		dir:             dir,
 	}, nil
 }
@@ -73,9 +81,13 @@ func (t *Tester) CoveredBy() ([]string, error) {
 		return []string{}, fmt.Errorf("error compiling test for go pkg %s: %s", t.testPos.pkg, err)
 	}
 
-	allTests, err := findTests(t.testPos.pkg)
+	allTests, err := findTests(t.testPos.pkg, t.run)
 	if err != nil {
 		return []string{}, fmt.Errorf("error finding tests in go pkg %s: %s", t.testPos.pkg, err)
+	}
+
+	if len(allTests) == 0 {
+		return []string{}, nil
 	}
 
 	return t.coveringTests(testBin, outputDir, allTests, t.includeSubtests)

@@ -11,6 +11,7 @@ var coveredByTests = map[string]struct {
 	fileName        string
 	includeSubtests bool
 	short           bool
+	runExpr         string
 	line, col       int
 	expectCoveredBy []string
 	expectErr       bool
@@ -34,6 +35,27 @@ var coveredByTests = map[string]struct {
 		line:     8, col: 0, // negative case of size()
 		short:           true,
 		expectCoveredBy: []string{"TestSize", "TestIsNegative"},
+	},
+	"runexp_matches_covering_test": {
+		fileDir:  "size",
+		fileName: "size.go",
+		line:     8, col: 0, // negative case of size()
+		runExpr:         "TestIs",
+		expectCoveredBy: []string{"TestIsNegative"},
+	},
+	"runexp_only_match_not_covering_test": {
+		fileDir:  "size",
+		fileName: "size.go",
+		line:     8, col: 0, // negative case of size()
+		runExpr:         "TestIsEnormous",
+		expectCoveredBy: []string{},
+	},
+	"runexp_no_matches": {
+		fileDir:  "size",
+		fileName: "size.go",
+		line:     8, col: 0, // negative case of size()
+		runExpr:         "SomethingInvalid",
+		expectCoveredBy: []string{},
 	},
 	"covered_by_0_of_4_tests": {
 		fileDir:  "size",
@@ -102,6 +124,12 @@ func TestCoveredBy(t *testing.T) {
 				},
 				includeSubtests: test.includeSubtests,
 				short:           test.short,
+				run:             test.runExpr,
+			}
+
+			// This logic is normally handled in the constructor
+			if tester.run == "" {
+				tester.run = "."
 			}
 
 			coveredBy, err := tester.CoveredBy()

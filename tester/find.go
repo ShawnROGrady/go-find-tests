@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-func findTests(pkg string) ([]string, error) {
-	output, err := exec.Command("go", "test", "-list", ".", pkg).Output()
+func findTests(pkg, runExpr string) ([]string, error) {
+	output, err := exec.Command("go", "test", "-list", runExpr, pkg).Output()
 	if err != nil {
 		return []string{}, parseCommandErr(err)
 	}
