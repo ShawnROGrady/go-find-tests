@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"strconv"
 
-	"github.com/ShawnROGrady/go-find-tests/finder"
 	"github.com/ShawnROGrady/go-find-tests/tester"
+)
+
+const (
+	defaultLineFmt = "%t:%f:%l:%c"
 )
 
 func main() {
@@ -22,7 +24,7 @@ func main() {
 		runExpr         = flag.String("run", ".", "Check only tests matching the regular expression")
 		printPositions  = flag.Bool("print-positions", false, "Print the positions of the found tests (NOTE: this does not currently work with subtests)")
 		jsonFmt         = flag.Bool("json", false, "Print the output in json format")
-		lineFmt         = flag.String("line-fmt", "%t:%f:%l:%c", "With -print-positions: the fmt to use when writing the postions of found tests. Structure:\n\t\t'%t': test name\n\t\t'%f': file\n\t\t'%l': line\n\t\t'%c': column\n\t\t'%o': offset\n\t")
+		lineFmt         = flag.String("line-fmt", defaultLineFmt, "With -print-positions: the fmt to use when writing the postions of found tests. Structure:\n\t\t'%t': test name\n\t\t'%f': file\n\t\t'%l': line\n\t\t'%c': column\n\t\t'%o': offset\n\t")
 		helpShort       = flag.Bool("h", false, "Print a help message and exit")
 		help            = flag.Bool("help", false, "Print a help message and exit")
 	)
@@ -56,42 +58,18 @@ func main() {
 		}
 	}
 
-	conf := tester.Config{
-		IncludeSubtests: *includeSubtests,
-		Short:           *short,
-		Run:             *runExpr,
+	conf := runConfig{
+		testerConf: tester.Config{
+			IncludeSubtests: *includeSubtests,
+			Short:           *short,
+			Run:             *runExpr,
+		},
+		jsonFmt:        *jsonFmt,
+		lineFmt:        *lineFmt,
+		printPositions: *printPositions,
 	}
 
-	t, err := tester.New(path, line, col, conf)
-	if err != nil {
-		log.Fatalf("Error constructing tester: %s", err)
-	}
-
-	coveredBy, err := t.CoveredBy()
-	if err != nil {
-		log.Fatalf("Error determining covering tests: %s", err)
-	}
-
-	if !*printPositions {
-		if err := printTests(os.Stdout, coveredBy, *jsonFmt); err != nil {
-			log.Fatalf("Error writing output: %s", err)
-		}
-		return
-	}
-
-	dir, _ := filepath.Split(path)
-	allPositions, err := finder.PackageTests(dir)
-	if err != nil {
-		log.Fatalf("Error finding tests in %s: %s", dir, err)
-	}
-
-	coveringPositions := make(map[string]finder.TestPosition)
-	for i := range coveredBy {
-		if pos, ok := allPositions[coveredBy[i]]; ok {
-			coveringPositions[coveredBy[i]] = pos
-		}
-	}
-	if err := printCoveringPostions(os.Stdout, coveringPositions, *jsonFmt, *lineFmt); err != nil {
-		log.Fatalf("Error writing output: %s", err)
+	if err := run(conf, path, line, col, os.Stdout); err != nil {
+		log.Fatal(err)
 	}
 }

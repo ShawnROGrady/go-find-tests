@@ -20,12 +20,14 @@ func printTests(dst io.Writer, tests []string, jsonFmt bool) error {
 		return err
 	}
 	for i := range tests {
-		fmt.Fprintf(dst, "%s\n", tests[i])
+		if _, err := fmt.Fprintf(dst, "%s\n", tests[i]); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func printCoveringPostions(dst io.Writer, positions map[string]finder.TestPosition, jsonFmt bool, lineFmt string) error {
+func printCoveringPostions(dst io.Writer, positions map[string]finder.TestPosition, positionTests []string, jsonFmt bool, lineFmt string) error {
 	if jsonFmt {
 		b, err := json.Marshal(positions)
 		if err != nil {
@@ -35,8 +37,10 @@ func printCoveringPostions(dst io.Writer, positions map[string]finder.TestPositi
 		return err
 	}
 
-	for k, v := range positions {
-		fmt.Fprintf(dst, "%s\n", fmtPosition(v, k, lineFmt))
+	for i := range positionTests {
+		if _, err := fmt.Fprintf(dst, "%s\n", fmtPosition(positions[positionTests[i]], positionTests[i], lineFmt)); err != nil {
+			return err
+		}
 	}
 	return nil
 }
