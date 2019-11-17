@@ -54,7 +54,7 @@ func New(path string, line, col int, conf Config) (*Tester, error) {
 
 	runExp := "." // should default to running all
 	if conf.Run != "" {
-		runExp = "."
+		runExp = conf.Run
 	}
 
 	var finder coverFinder

@@ -29,6 +29,18 @@ var runTests = map[string]struct {
 		expectErr:      false,
 		expectedOutput: "TestCovers\nTestParseLine\n",
 	},
+	"run_filter_set": {
+		conf: runConfig{
+			lineFmt: defaultLineFmt,
+			testerConf: tester.Config{
+				Run: "TestCovers",
+			},
+		},
+		path: "../../cover/profile.go",
+		line: 154, col: 12, // success case parseLine()
+		expectErr:      false,
+		expectedOutput: "TestCovers\n",
+	},
 	"json_printing_no_subs": {
 		conf: runConfig{
 			lineFmt: defaultLineFmt,
