@@ -2,9 +2,16 @@ package tester
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"sort"
 	"testing"
 )
+
+var allFinders = map[string]func() coverFinder{
+	"sequential": func() coverFinder { return sequentialFinder{} },
+	"err_group":  func() coverFinder { return errGroupFinder{} },
+}
 
 var coveredByTests = map[string]struct {
 	fileDir         string
@@ -110,58 +117,63 @@ var coveredByTests = map[string]struct {
 }
 
 func TestCoveredBy(t *testing.T) {
-	for testName, test := range coveredByTests {
-		t.Run(testName, func(t *testing.T) {
-			// TODO: figure out better solution to handling testdata
-			// currently getting the package associate testdata returns a string
-			// beginning with '_', which throughs of the later 'go test' calls
-			tester := &Tester{
-				testPos: position{
-					file: test.fileName,
-					pkg:  fmt.Sprintf("../testdata/%s", test.fileDir),
-					line: test.line,
-					col:  test.col,
-				},
-				includeSubtests: test.includeSubtests,
-				short:           test.short,
-				run:             test.runExpr,
-			}
-
-			// This logic is normally handled in the constructor
-			if tester.run == "" {
-				tester.run = "."
-			}
-
-			coveredBy, err := tester.CoveredBy()
-			if test.expectErr {
-				if err == nil {
-					t.Errorf("Unexpectedly no error")
-				}
-				if test.expectedErr != nil {
-					if test.expectedErr.Error() != err.Error() {
-						t.Errorf("Unexpected error message (expected = '%s', actual = '%s')", test.expectedErr, err)
+	for finderName, newFinder := range allFinders {
+		t.Run(fmt.Sprintf("finder=%s", finderName), func(t *testing.T) {
+			for testName, test := range coveredByTests {
+				t.Run(testName, func(t *testing.T) {
+					// TODO: figure out better solution to handling testdata
+					// currently getting the package associate testdata returns a string
+					// beginning with '_', which throughs of the later 'go test' calls
+					tester := &Tester{
+						testPos: position{
+							file: test.fileName,
+							pkg:  fmt.Sprintf("../testdata/%s", test.fileDir),
+							line: test.line,
+							col:  test.col,
+						},
+						includeSubtests: test.includeSubtests,
+						short:           test.short,
+						run:             test.runExpr,
+						coverFinder:     newFinder(),
 					}
-				}
-			} else {
-				if err != nil {
-					t.Errorf("Unexpected error checking for covering tests: %s", err)
-					return
-				}
-			}
 
-			if len(coveredBy) != len(test.expectCoveredBy) {
-				t.Errorf("Unexpected CoveredBy (expected = %v, actual = %v)", test.expectCoveredBy, coveredBy)
-				return
-			}
+					// This logic is normally handled in the constructor
+					if tester.run == "" {
+						tester.run = "."
+					}
 
-			sort.Slice(coveredBy, func(i, j int) bool { return coveredBy[i] < coveredBy[j] })
-			expectCoveredBy := []string{}
-			expectCoveredBy = append(expectCoveredBy, test.expectCoveredBy...)
-			sort.Slice(expectCoveredBy, func(i, j int) bool { return expectCoveredBy[i] < expectCoveredBy[j] })
-			for i := range coveredBy {
-				if coveredBy[i] != expectCoveredBy[i] {
-					t.Errorf("Unexpected CoveredBy[%d] (expected = %s, actual = %s)", i, expectCoveredBy[i], coveredBy[i])
-				}
+					coveredBy, err := tester.CoveredBy()
+					if test.expectErr {
+						if err == nil {
+							t.Errorf("Unexpectedly no error")
+						}
+						if test.expectedErr != nil {
+							if test.expectedErr.Error() != err.Error() {
+								t.Errorf("Unexpected error message (expected = '%s', actual = '%s')", test.expectedErr, err)
+							}
+						}
+					} else {
+						if err != nil {
+							t.Errorf("Unexpected error checking for covering tests: %s", err)
+							return
+						}
+					}
+
+					if len(coveredBy) != len(test.expectCoveredBy) {
+						t.Errorf("Unexpected CoveredBy (expected = %v, actual = %v)", test.expectCoveredBy, coveredBy)
+						return
+					}
+
+					sort.Slice(coveredBy, func(i, j int) bool { return coveredBy[i] < coveredBy[j] })
+					expectCoveredBy := []string{}
+					expectCoveredBy = append(expectCoveredBy, test.expectCoveredBy...)
+					sort.Slice(expectCoveredBy, func(i, j int) bool { return expectCoveredBy[i] < expectCoveredBy[j] })
+					for i := range coveredBy {
+						if coveredBy[i] != expectCoveredBy[i] {
+							t.Errorf("Unexpected CoveredBy[%d] (expected = %s, actual = %s)", i, expectCoveredBy[i], coveredBy[i])
+						}
+					}
+				})
 			}
 		})
 	}
@@ -308,33 +320,97 @@ var coveredByBenchmarks = map[string]struct {
 }
 
 func BenchmarkCoveredBy(b *testing.B) {
-	for testName, test := range coveredByBenchmarks {
-		// TODO: figure out better solution to handling testdata
-		// currently getting the package associate testdata returns a string
-		// beginning with '_', which throughs of the later 'go test' calls
-		tester := &Tester{
-			testPos: position{
-				file: test.fileName,
-				pkg:  fmt.Sprintf("../testdata/%s", test.fileDir),
-				line: test.line,
-				col:  test.col,
-			},
-			includeSubtests: test.includeSubtests,
-		}
-		b.Run(testName, func(b *testing.B) {
-			var (
-				covered []string
-				err     error
-			)
-			for n := 0; n < b.N; n++ {
-				covered, err = tester.CoveredBy()
+	for finderName, newFinder := range allFinders {
+		b.Run(fmt.Sprintf("finder=%s", finderName), func(b *testing.B) {
+			for testName, test := range coveredByBenchmarks {
+				// TODO: figure out better solution to handling testdata
+				// currently getting the package associate testdata returns a string
+				// beginning with '_', which throughs of the later 'go test' calls
+				tester := &Tester{
+					testPos: position{
+						file: test.fileName,
+						pkg:  fmt.Sprintf("../testdata/%s", test.fileDir),
+						line: test.line,
+						col:  test.col,
+					},
+					includeSubtests: test.includeSubtests,
+					coverFinder:     newFinder(),
+				}
+				b.Run(testName, func(b *testing.B) {
+					var (
+						covered []string
+						err     error
+					)
+					for n := 0; n < b.N; n++ {
+						covered, err = tester.CoveredBy()
+						if err != nil {
+							if !test.expectErr {
+								b.Errorf("Unexpected error: %s", err)
+							}
+						}
+					}
+					coveringTests = covered
+				})
+			}
+		})
+	}
+}
+
+func BenchmarkCoveringTests(b *testing.B) {
+	for finderName, newFinder := range allFinders {
+		b.Run(fmt.Sprintf("finder=%s", finderName), func(b *testing.B) {
+			for testName, test := range coveredByBenchmarks {
+				// TODO: figure out better solution to handling testdata
+				// currently getting the package associate testdata returns a string
+				// beginning with '_', which throughs of the later 'go test' calls
+				tester := &Tester{
+					testPos: position{
+						file: test.fileName,
+						pkg:  fmt.Sprintf("../testdata/%s", test.fileDir),
+						line: test.line,
+						col:  test.col,
+					},
+					coverFinder:     newFinder(),
+					includeSubtests: test.includeSubtests,
+				}
+				outputDir, err := ioutil.TempDir("", "test_finder")
+				if err != nil {
+					b.Fatalf("Error creating tmp dir: %s", err)
+				}
+				testBin, err := tester.compileTest(outputDir)
 				if err != nil {
 					if !test.expectErr {
-						b.Errorf("Unexpected error: %s", err)
+						b.Errorf("Error compiling test: %s", err)
 					}
+					os.RemoveAll(outputDir)
+					continue
 				}
+				allTests, err := findTests(tester.testPos.pkg, ".")
+				if err != nil {
+					if !test.expectErr {
+						b.Errorf("Error finding tests: %s", err)
+					}
+					os.RemoveAll(outputDir)
+					continue
+				}
+				b.Run(testName, func(b *testing.B) {
+					var (
+						covered []string
+						err     error
+					)
+					for n := 0; n < b.N; n++ {
+						covered, err = tester.coverFinder.coveringTests(tester, testBin, outputDir, allTests, tester.includeSubtests)
+						if err != nil {
+							if !test.expectErr {
+								b.Errorf("Unexpected error: %s", err)
+							}
+						}
+					}
+					coveringTests = covered
+				})
+
+				os.RemoveAll(outputDir)
 			}
-			coveringTests = covered
 		})
 	}
 }

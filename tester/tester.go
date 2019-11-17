@@ -2,7 +2,6 @@ package tester
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,9 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/ShawnROGrady/go-find-tests/cover"
-	"golang.org/x/sync/errgroup"
 )
 
 // Tester performs the main testing logic
@@ -22,6 +18,7 @@ type Tester struct {
 	short           bool
 	run             string
 	dir             string // directory of test
+	coverFinder     coverFinder
 }
 
 // Config represents configuration options for the Tester
@@ -29,6 +26,7 @@ type Config struct {
 	IncludeSubtests bool
 	Short           bool   // sets '-short' when running tests
 	Run             string // which tests should be run, if empty defaults to '.' (sets '-list' flag)
+	Seq             bool   // all tests should be run sequentially
 }
 
 // New constructs a new tester
@@ -59,12 +57,20 @@ func New(path string, line, col int, conf Config) (*Tester, error) {
 		runExp = "."
 	}
 
+	var finder coverFinder
+	if conf.Seq {
+		finder = sequentialFinder{}
+	} else {
+		finder = errGroupFinder{}
+	}
+
 	return &Tester{
 		testPos:         pos,
 		includeSubtests: conf.IncludeSubtests,
 		short:           conf.Short,
 		run:             runExp,
 		dir:             dir,
+		coverFinder:     finder,
 	}, nil
 }
 
@@ -90,7 +96,7 @@ func (t *Tester) CoveredBy() ([]string, error) {
 		return []string{}, nil
 	}
 
-	return t.coveringTests(testBin, outputDir, allTests, t.includeSubtests)
+	return t.coverFinder.coveringTests(t, testBin, outputDir, allTests, t.includeSubtests)
 }
 
 func (t *Tester) compileTest(outputDir string) (string, error) {
@@ -140,91 +146,4 @@ func (t *Tester) runCompiledTest(testName, testBin, outputDir string) (io.ReadCl
 
 	coverProf, err := os.Open(pathToCover)
 	return coverProf, &buf, err
-}
-
-func (t *Tester) coveringTests(testBin, outputDir string, allTests []string, includeSubtests bool) ([]string, error) {
-	var (
-		ctx       = context.Background()
-		coveredBy = []string{}
-		tests     = make([]string, len(allTests))
-		subs      = make([][]string, len(allTests))
-	)
-	g, ctx := errgroup.WithContext(ctx)
-
-	for i := range allTests {
-		testNum := i
-		testName := allTests[i]
-		g.Go(func() error {
-			coverout, stdout, err := t.runCompiledTest(testName, testBin, outputDir)
-			if err != nil {
-				return fmt.Errorf("error running test '%s': %s", testName, err)
-			}
-
-			prof, err := cover.New(coverout)
-			if err != nil {
-				return fmt.Errorf("error parsing coverage output: %s", err)
-			}
-			if err := coverout.Close(); err != nil {
-				return err
-			}
-
-			if prof.Covers(t.testPos.file, t.testPos.line, t.testPos.col) {
-				tests[testNum] = testName
-				if includeSubtests {
-					subs[testNum], err = subtests(stdout)
-					if err != nil {
-						return fmt.Errorf("error finding subtests: %s", err)
-					}
-				}
-			}
-			return nil
-		})
-	}
-	if err := g.Wait(); err != nil {
-		return []string{}, err
-	}
-
-	if includeSubtests {
-		errGroup, _ := errgroup.WithContext(ctx)
-		coveringSubs := make([][]string, len(tests))
-		for i := range tests {
-			if tests[i] == "" {
-				continue
-			}
-			testNum := i
-			errGroup.Go(func() error {
-				if len(subs[testNum]) != 0 {
-					if len(subs[testNum]) == 1 {
-						coveringSubs[testNum] = subs[testNum]
-						return nil
-					}
-					coveringSubTests, err := t.coveringTests(testBin, outputDir, subs[testNum], false)
-					if err != nil {
-						return err
-					}
-					coveringSubs[testNum] = coveringSubTests
-				}
-				return nil
-			})
-		}
-		if err := errGroup.Wait(); err != nil {
-			return []string{}, err
-		}
-		for i := range tests {
-			if tests[i] != "" {
-				coveredBy = append(coveredBy, tests[i])
-			}
-			if len(coveringSubs[i]) != 0 {
-				coveredBy = append(coveredBy, coveringSubs[i]...)
-			}
-		}
-	} else {
-		for i := range tests {
-			if tests[i] != "" {
-				coveredBy = append(coveredBy, tests[i])
-			}
-		}
-	}
-
-	return coveredBy, nil
 }

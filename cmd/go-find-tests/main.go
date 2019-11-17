@@ -25,6 +25,7 @@ func main() {
 		printPositions  = flag.Bool("print-positions", false, "Print the positions of the found tests (NOTE: this does not currently work with subtests)")
 		jsonFmt         = flag.Bool("json", false, "Print the output in json format")
 		lineFmt         = flag.String("line-fmt", defaultLineFmt, "With -print-positions: the fmt to use when writing the postions of found tests. Structure:\n\t\t'%t': test name\n\t\t'%f': file\n\t\t'%l': line\n\t\t'%c': column\n\t\t'%o': offset\n\t")
+		runSeq          = flag.Bool("seq", false, "Run all tests sequentially. Greatly reduces performance but may be neccessary for integration tests")
 		helpShort       = flag.Bool("h", false, "Print a help message and exit")
 		help            = flag.Bool("help", false, "Print a help message and exit")
 	)
@@ -63,6 +64,7 @@ func main() {
 			IncludeSubtests: *includeSubtests,
 			Short:           *short,
 			Run:             *runExpr,
+			Seq:             *runSeq,
 		},
 		jsonFmt:        *jsonFmt,
 		lineFmt:        *lineFmt,
