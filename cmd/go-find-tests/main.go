@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	defaultLineFmt = "%t:%f:%l:%c"
+	defaultLineFmt = "%t:%f:%l:%c:%s"
 )
 
 func main() {
@@ -22,9 +22,9 @@ func main() {
 		includeSubtests = flag.Bool("include-subs", false, "Find specific sub-tests which cover the specified block")
 		short           = flag.Bool("short", false, "Sets '-short' flag when testing for coverage")
 		runExpr         = flag.String("run", ".", "Check only tests matching the regular expression")
-		printPositions  = flag.Bool("print-positions", false, "Print the positions of the found tests (NOTE: this does not currently work with subtests)")
+		printPositions  = flag.Bool("print-positions", false, "Print the positions of the found tests")
 		jsonFmt         = flag.Bool("json", false, "Print the output in json format")
-		lineFmt         = flag.String("line-fmt", defaultLineFmt, "With -print-positions: the fmt to use when writing the postions of found tests. Structure:\n\t\t'%t': test name\n\t\t'%f': file\n\t\t'%l': line\n\t\t'%c': column\n\t\t'%o': offset\n\t")
+		lineFmt         = flag.String("line-fmt", defaultLineFmt, "With -print-positions: the fmt to use when writing the postions of found tests. Structure:\n\t\t'%t': test name\n\t\t'%f': file\n\t\t'%l': line\n\t\t'%c': column\n\t\t'%o': offset\n\t'%s': subtests (printed as comma separated list)")
 		runSeq          = flag.Bool("seq", false, "Run all tests sequentially. Greatly reduces performance but may be neccessary for integration tests")
 		helpShort       = flag.Bool("h", false, "Print a help message and exit")
 		help            = flag.Bool("help", false, "Print a help message and exit")

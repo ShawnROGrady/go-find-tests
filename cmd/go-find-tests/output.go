@@ -27,7 +27,12 @@ func printTests(dst io.Writer, tests []string, jsonFmt bool) error {
 	return nil
 }
 
-func printCoveringPostions(dst io.Writer, positions map[string]finder.TestPosition, positionTests []string, jsonFmt bool, lineFmt string) error {
+type testPosition struct {
+	finder.TestPosition
+	SubTests []string `json:"subtests,omitempty"`
+}
+
+func printCoveringPostions(dst io.Writer, positions map[string]*testPosition, positionTests []string, jsonFmt bool, lineFmt string) error {
 	if jsonFmt {
 		b, err := json.Marshal(positions)
 		if err != nil {
@@ -38,19 +43,20 @@ func printCoveringPostions(dst io.Writer, positions map[string]finder.TestPositi
 	}
 
 	for i := range positionTests {
-		if _, err := fmt.Fprintf(dst, "%s\n", fmtPosition(positions[positionTests[i]], positionTests[i], lineFmt)); err != nil {
+		if _, err := fmt.Fprintf(dst, "%s\n", fmtPosition(*positions[positionTests[i]], positionTests[i], lineFmt)); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func fmtPosition(pos finder.TestPosition, testName, fmt string) string {
+func fmtPosition(pos testPosition, testName, fmt string) string {
 	line := strings.ReplaceAll(fmt, "%t", testName)
 	line = strings.ReplaceAll(line, "%f", pos.File)
 	line = strings.ReplaceAll(line, "%l", strconv.Itoa(pos.Line))
 	line = strings.ReplaceAll(line, "%c", strconv.Itoa(pos.Col))
 	line = strings.ReplaceAll(line, "%o", strconv.Itoa(pos.Offset))
+	line = strings.ReplaceAll(line, "%s", strings.Join(pos.SubTests, ","))
 
 	return line
 }

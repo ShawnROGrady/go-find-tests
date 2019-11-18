@@ -11,7 +11,7 @@ Covering test are written to stdout and any encountered errors are written to st
 
 1. `-include-subs`: Find specific sub-tests which cover the specified block (default = false)
 2. `-print-positions`: Print the positions of the found tests (default false)
-    - **NOTE:** this currently does not support sub-tests. Currently setting both `-include-subs` and `-print-positions` will result in the sub-tests being searched for but excluded from output.
+    - **NOTE:** subtests will not have position information
 3. `-run regexp`: Check only tests matching the regular expression (default = '.')
 4. `-short`: Sets '-short' flag when testing for coverage (default = false)
     - see `go help testflag` for info
@@ -20,12 +20,13 @@ Covering test are written to stdout and any encountered errors are written to st
 ### Formatting
 
 1. `-json`: Print the output in json format instead of as a newline separated list (default = false)
-2. `-line-fmt string`: With `-print-positions` - the fmt to use when writing the postions of found test (defualt = `%t:%f:%l:%c`)
+2. `-line-fmt string`: With `-print-positions` - the fmt to use when writing the postions of found test (defualt = `%t:%f:%l:%c:%s`)
     - `%t`: test name
     - `%f`: file
     - `%l`: line
     - `%c`: column
     - `%o`: offset
+    - `%s`: subtests
 
 ## Project Status
 This project is still in "beta" since I want to be able to quickly change the public API in order to enable additional tooling such as editor plugins.
