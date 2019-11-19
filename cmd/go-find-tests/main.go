@@ -20,7 +20,7 @@ func main() {
 	var (
 		includeSubtests = flag.Bool("include-subs", false, "Find specific sub-tests which cover the specified block")
 		short           = flag.Bool("short", false, "Sets '-short' flag when testing for coverage")
-		runExpr         = flag.String("run", ".", "Check only tests matching the regular expression")
+		runExpr         = flag.String("run", ".", "Check only top-level tests matching the regular expression")
 		printPositions  = flag.Bool("print-positions", false, "Print the positions of the found tests")
 		jsonFmt         = flag.Bool("json", false, "Print the output in json format")
 		lineFmt         = flag.String("line-fmt", defaultLineFmt, "With -print-positions: the fmt to use when writing the postions of found tests. Structure:\n\t\t'%t': test name\n\t\t'%f': file\n\t\t'%l': line\n\t\t'%c': column\n\t\t'%o': offset\n\t'%s': subtests (printed as comma separated list)")

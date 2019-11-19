@@ -12,7 +12,7 @@ Covering test are written to stdout and any encountered errors are written to st
 1. `-include-subs`: Find specific sub-tests which cover the specified block (default = false)
 2. `-print-positions`: Print the positions of the found tests (default false)
     - **NOTE:** subtests will not have position information
-3. `-run regexp`: Check only tests matching the regular expression (default = '.')
+3. `-run regexp`: Check only top-level tests matching the regular expression (default = '.')
 4. `-short`: Sets '-short' flag when testing for coverage (default = false)
     - see `go help testflag` for info
 5. `-seq`: Run all tests sequentially. Greatly reduces performance but may be neccessary for integration tests (default = false)
