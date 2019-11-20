@@ -57,5 +57,8 @@ Please try the following, if the problem persists feel free to open an issue or 
 * was a column provided, along with the file and line, to the tool?
     - often just a line is sufficient, but a column should be provided for truly accurate results
 
+## Editor plugins
+* Vim - [vim-go-find-tests](https://github.com/ShawnROGrady/vim-go-find-tests/tree/master)
+
 ## Project Status
 This project is still in "beta" since I want to be able to quickly change the public API in order to enable additional tooling such as editor plugins.
