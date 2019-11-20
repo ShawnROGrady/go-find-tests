@@ -18,6 +18,3 @@ jobs:
 
     - name: Build
       run: go build -v ./cmd/go-find-test
-      
-    - name: Test
-      run: go test ./...
