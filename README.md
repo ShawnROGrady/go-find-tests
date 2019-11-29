@@ -8,9 +8,27 @@ Covering test are written to stdout and any encountered errors are written to st
 
 Sample usage:
 ```
+# 1. Standard usage
 $ go-find-tests ./cover/profile.go:155.12 
 TestCovers
 TestParseLine
+
+# 2. Subtests enabled
+$ go-find-tests -include-subs ./cover/profile.go:155.12 
+TestCovers
+TestCovers/end_of_coverage
+TestCovers/in_uncovered_block
+TestCovers/middle_of_covered_line
+TestCovers/start_of_coverage
+TestCovers/uncovered_file
+TestParseLine
+TestParseLine/covered_line
+TestParseLine/uncovered_line
+
+# 3. With positions 
+$ go-find-tests -print-positions ./cover/profile.go:155.12 
+TestCovers:cover/profile_test.go:65:1:
+TestParseLine:cover/profile_test.go:127:1:
 ```
 ## Options
 ### Behaviour
