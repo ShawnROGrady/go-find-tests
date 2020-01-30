@@ -136,6 +136,7 @@ func TestCoveredBy(t *testing.T) {
 						run:             test.runExpr,
 						coverFinder:     newFinder(),
 					}
+					// test
 
 					// This logic is normally handled in the constructor
 					if tester.run == "" {
