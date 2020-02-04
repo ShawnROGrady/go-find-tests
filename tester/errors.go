@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// testErr represents an error that occured while running a test
+// testErr represents an error that occurred while running a test
 type testErr struct {
 	testName string
 	output   string

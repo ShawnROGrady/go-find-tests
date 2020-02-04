@@ -68,7 +68,7 @@ func TestParsePosition(t *testing.T) {
 			}
 
 			if *testCase.expectedPos != *pos {
-				t.Errorf("Unexpected parsed postion (expected = %#v, actual = %#v)", testCase.expectedPos, pos)
+				t.Errorf("Unexpected parsed position (expected = %#v, actual = %#v)", testCase.expectedPos, pos)
 			}
 		})
 	}
