@@ -76,29 +76,7 @@ func (e errGroupFinder) coveringTests(t *Tester, testBin, outputDir string, allT
 		testNum := i
 		testName := allTests[i]
 		g.Go(func() error {
-			coverout, stdout, err := t.runCompiledTest(testName, testBin, outputDir)
-			if err != nil {
-				return fmt.Errorf("error running test '%s': %s", testName, err)
-			}
-
-			prof, err := cover.New(coverout)
-			if err != nil {
-				return fmt.Errorf("error parsing coverage output: %s", err)
-			}
-			if err := coverout.Close(); err != nil {
-				return err
-			}
-
-			if prof.Covers(t.testPos.file, t.testPos.line, t.testPos.col) {
-				tests[testNum] = testName
-				if includeSubtests {
-					subs[testNum], err = subtests(stdout)
-					if err != nil {
-						return fmt.Errorf("error finding subtests: %s", err)
-					}
-				}
-			}
-			return nil
+			return e.runTest(t, testBin, outputDir, testName, testNum, includeSubtests, tests, subs)
 		})
 	}
 	if err := g.Wait(); err != nil {
@@ -106,29 +84,8 @@ func (e errGroupFinder) coveringTests(t *Tester, testBin, outputDir string, allT
 	}
 
 	if includeSubtests {
-		errGroup, _ := errgroup.WithContext(ctx)
-		coveringSubs := make([][]string, len(tests))
-		for i := range tests {
-			if tests[i] == "" {
-				continue
-			}
-			testNum := i
-			errGroup.Go(func() error {
-				if len(subs[testNum]) != 0 {
-					if len(subs[testNum]) == 1 {
-						coveringSubs[testNum] = subs[testNum]
-						return nil
-					}
-					coveringSubTests, err := e.coveringTests(t, testBin, outputDir, subs[testNum], false)
-					if err != nil {
-						return err
-					}
-					coveringSubs[testNum] = coveringSubTests
-				}
-				return nil
-			})
-		}
-		if err := errGroup.Wait(); err != nil {
+		coveringSubs, err := e.coveringSubs(ctx, t, testBin, outputDir, tests, subs)
+		if err != nil {
 			return []string{}, err
 		}
 		for i := range tests {
@@ -148,4 +105,59 @@ func (e errGroupFinder) coveringTests(t *Tester, testBin, outputDir string, allT
 	}
 
 	return coveredBy, nil
+}
+
+func (e errGroupFinder) runTest(t *Tester, testBin, outputDir, testName string, testNum int, includeSubtests bool, tests []string, subs [][]string) error {
+	coverout, stdout, err := t.runCompiledTest(testName, testBin, outputDir)
+	if err != nil {
+		return fmt.Errorf("error running test '%s': %s", testName, err)
+	}
+
+	prof, err := cover.New(coverout)
+	if err != nil {
+		return fmt.Errorf("error parsing coverage output: %s", err)
+	}
+	if err := coverout.Close(); err != nil {
+		return err
+	}
+
+	if prof.Covers(t.testPos.file, t.testPos.line, t.testPos.col) {
+		tests[testNum] = testName
+		if includeSubtests {
+			subs[testNum], err = subtests(stdout)
+			if err != nil {
+				return fmt.Errorf("error finding subtests: %s", err)
+			}
+		}
+	}
+	return nil
+}
+
+func (e errGroupFinder) coveringSubs(ctx context.Context, t *Tester, testBin, outputDir string, tests []string, subs [][]string) ([][]string, error) {
+	errGroup, _ := errgroup.WithContext(ctx)
+	coveringSubs := make([][]string, len(tests))
+	for i := range tests {
+		if tests[i] == "" {
+			continue
+		}
+		testNum := i
+		errGroup.Go(func() error {
+			if len(subs[testNum]) != 0 {
+				if len(subs[testNum]) == 1 {
+					coveringSubs[testNum] = subs[testNum]
+					return nil
+				}
+				coveringSubTests, err := e.coveringTests(t, testBin, outputDir, subs[testNum], false)
+				if err != nil {
+					return err
+				}
+				coveringSubs[testNum] = coveringSubTests
+			}
+			return nil
+		})
+	}
+	if err := errGroup.Wait(); err != nil {
+		return [][]string{}, err
+	}
+	return coveringSubs, nil
 }
