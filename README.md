@@ -1,3 +1,6 @@
+![GoTest](https://github.com/ShawnROGrady/go-find-tests/workflows/GoTest/badge.svg)
+![GoBuild](https://github.com/ShawnROGrady/go-find-tests/workflows/GoBuild/badge.svg)
+
 # go-find-tests
 Tool to determine which tests cover a block of code
 
