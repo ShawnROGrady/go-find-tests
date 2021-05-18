@@ -122,6 +122,22 @@ var parseLineTests = map[string]struct {
 		line:      "mode: set",
 		expectErr: true,
 	},
+	"uncovered_line_with_dot_in_file": {
+		line:      "github.com/mypkg/graph/schema.resolvers.go:27.108,29.19 2 0",
+		expectErr: false,
+		expectedParsed: coverLine{
+			pkg:  "github.com/mypkg/graph",
+			file: "schema.resolvers.go",
+			coverBlock: coverBlock{
+				startLine: 27,
+				startCol:  108,
+				endLine:   29,
+				endCol:    19,
+				numStmt:   2,
+				count:     0,
+			},
+		},
+	},
 }
 
 func TestParseLine(t *testing.T) {

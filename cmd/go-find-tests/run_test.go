@@ -61,7 +61,7 @@ var runTests = map[string]struct {
 		path: "../../cover/profile.go",
 		line: 154, col: 12, // success case parseLine()
 		expectErr:      false,
-		expectedOutput: "TestCovers\nTestCovers/end_of_coverage\nTestCovers/in_uncovered_block\nTestCovers/middle_of_covered_line\nTestCovers/start_of_coverage\nTestCovers/uncovered_file\nTestParseLine\nTestParseLine/covered_line\nTestParseLine/uncovered_line\n",
+		expectedOutput: "TestCovers\nTestCovers/end_of_coverage\nTestCovers/in_uncovered_block\nTestCovers/middle_of_covered_line\nTestCovers/start_of_coverage\nTestCovers/uncovered_file\nTestParseLine\nTestParseLine/covered_line\nTestParseLine/uncovered_line\nTestParseLine/uncovered_line_with_dot_in_file\n",
 	},
 	"json_printing_subs_enabled": {
 		conf: runConfig{
@@ -74,7 +74,7 @@ var runTests = map[string]struct {
 		path: "../../cover/profile.go",
 		line: 154, col: 12, // success case parseLine()
 		expectErr:      false,
-		expectedOutput: `["TestCovers","TestCovers/end_of_coverage","TestCovers/in_uncovered_block","TestCovers/middle_of_covered_line","TestCovers/start_of_coverage","TestCovers/uncovered_file","TestParseLine","TestParseLine/covered_line","TestParseLine/uncovered_line"]`,
+		expectedOutput: `["TestCovers","TestCovers/end_of_coverage","TestCovers/in_uncovered_block","TestCovers/middle_of_covered_line","TestCovers/start_of_coverage","TestCovers/uncovered_file","TestParseLine","TestParseLine/covered_line","TestParseLine/uncovered_line","TestParseLine/uncovered_line_with_dot_in_file"]`,
 	},
 	"with_positions": {
 		conf: runConfig{
@@ -84,7 +84,7 @@ var runTests = map[string]struct {
 		path: "../../cover/profile.go",
 		line: 154, col: 12, // success case parseLine()
 		expectErr:      false,
-		expectedOutput: "TestCovers:../../cover/profile_test.go:65:1:\nTestParseLine:../../cover/profile_test.go:127:1:\n",
+		expectedOutput: "TestCovers:../../cover/profile_test.go:65:1:\nTestParseLine:../../cover/profile_test.go:143:1:\n",
 	},
 	"json_printing_with_positions": {
 		conf: runConfig{
@@ -95,7 +95,7 @@ var runTests = map[string]struct {
 		path: "../../cover/profile.go",
 		line: 154, col: 12, // success case parseLine()
 		expectErr:      false,
-		expectedOutput: `{"TestCovers":{"file":"../../cover/profile_test.go","line":65,"col":1,"offset":1270},"TestParseLine":{"file":"../../cover/profile_test.go","line":127,"col":1,"offset":2543}}`,
+		expectedOutput: `{"TestCovers":{"file":"../../cover/profile_test.go","line":65,"col":1,"offset":1270},"TestParseLine":{"file":"../../cover/profile_test.go","line":143,"col":1,"offset":2928}}`,
 	},
 	"json_printing_with_positions_and_subs": {
 		conf: runConfig{
@@ -109,7 +109,7 @@ var runTests = map[string]struct {
 		path: "../../cover/profile.go",
 		line: 154, col: 12, // success case parseLine()
 		expectErr:      false,
-		expectedOutput: `{"TestCovers":{"file":"../../cover/profile_test.go","line":65,"col":1,"offset":1270,"subtests":["TestCovers/end_of_coverage","TestCovers/in_uncovered_block","TestCovers/middle_of_covered_line","TestCovers/start_of_coverage","TestCovers/uncovered_file"]},"TestParseLine":{"file":"../../cover/profile_test.go","line":127,"col":1,"offset":2543,"subtests":["TestParseLine/covered_line","TestParseLine/uncovered_line"]}}`,
+		expectedOutput: `{"TestCovers":{"file":"../../cover/profile_test.go","line":65,"col":1,"offset":1270,"subtests":["TestCovers/end_of_coverage","TestCovers/in_uncovered_block","TestCovers/middle_of_covered_line","TestCovers/start_of_coverage","TestCovers/uncovered_file"]},"TestParseLine":{"file":"../../cover/profile_test.go","line":143,"col":1,"offset":2928,"subtests":["TestParseLine/covered_line","TestParseLine/uncovered_line","TestParseLine/uncovered_line_with_dot_in_file"]}}`,
 	},
 	"with_positions_subs_enabled": {
 		conf: runConfig{
@@ -122,7 +122,7 @@ var runTests = map[string]struct {
 		path: "../../cover/profile.go",
 		line: 154, col: 12, // success case parseLine()
 		expectErr:      false,
-		expectedOutput: "TestCovers:../../cover/profile_test.go:65:1:TestCovers/end_of_coverage,TestCovers/in_uncovered_block,TestCovers/middle_of_covered_line,TestCovers/start_of_coverage,TestCovers/uncovered_file\nTestParseLine:../../cover/profile_test.go:127:1:TestParseLine/covered_line,TestParseLine/uncovered_line\n",
+		expectedOutput: "TestCovers:../../cover/profile_test.go:65:1:TestCovers/end_of_coverage,TestCovers/in_uncovered_block,TestCovers/middle_of_covered_line,TestCovers/start_of_coverage,TestCovers/uncovered_file\nTestParseLine:../../cover/profile_test.go:143:1:TestParseLine/covered_line,TestParseLine/uncovered_line,TestParseLine/uncovered_line_with_dot_in_file\n",
 	},
 }
 
